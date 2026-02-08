@@ -1,14 +1,18 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 
-export default function ItemCard({ title, price, onPress }) {
+export default function ItemCard({ title, price, image, onPress }) {
   return (
     <Pressable
       onPress={onPress}
       style={styles.card}
       android_ripple={{ color: "#00000010", borderless: false }}
     >
-      <View style={styles.image} />
+      <Image
+        source={image}
+        style={styles.image}
+        resizeMode="cover"
+      />
 
       <View style={styles.meta}>
         <Text style={styles.title} numberOfLines={1}>
@@ -34,6 +38,7 @@ const styles = StyleSheet.create({
   },
   image: {
     height: 140,
+    width: "100%",
     backgroundColor: "#ededed",
   },
   meta: {

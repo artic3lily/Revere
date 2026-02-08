@@ -8,6 +8,15 @@ import { auth } from "../config/firebase";
 import LoginScreen from "../screens/auth/LoginScreen";
 import SignupScreen from "../screens/auth/SignupScreen";
 import HomeScreen from "../screens/HomeScreen";
+import ProfileScreen from "../screens/ProfileScreen";
+import SearchScreen from "../screens/SearchScreen";
+import UserProfileScreen from "../screens/UserProfileScreen";
+import PostDetailScreen from "../screens/PostDetailScreen";
+import WishlistScreen from "../screens/WishlistScreen";
+import CartScreen from "../screens/CartScreen";
+import UserChatScreen from "../screens/UserChatScreen";
+import ChatbotScreen from "../screens/ChatbotScreen";
+import InboxScreen from "../screens/InboxScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -35,7 +44,18 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="Home" component={HomeScreen} />
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Wishlist" component={WishlistScreen} />
+            <Stack.Screen name="Cart" component={CartScreen} />
+            <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+            <Stack.Screen name="Search" component={SearchScreen} />
+            <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ title: "Style Assistant" }}/>
+            <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+            <Stack.Screen name="UserChat" component={UserChatScreen} />
+            <Stack.Screen name="Inbox" component={InboxScreen} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
