@@ -68,7 +68,7 @@ export default function PostDetailScreen({ route, navigation }) {
     if (!uid) return Alert.alert('Please log in to save items to your wishlist.');
 
     const next = !saved;
-    setSaved(next); // optimistic
+    setSaved(next);
 
     const ref = doc(db, 'users', uid, 'wishlist', postId);
     try {
@@ -88,7 +88,7 @@ export default function PostDetailScreen({ route, navigation }) {
     if (!uid) return Alert.alert('Please log in to add items to your cart.');
 
     const next = !inCart;
-    setInCart(next); // optimistic
+    setInCart(next);
 
     const ref = doc(db, 'users', uid, 'cart', postId);
     try {

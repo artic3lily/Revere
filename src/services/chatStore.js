@@ -10,7 +10,7 @@ import {
 import { db } from "../config/firebase";
 import { auth } from "../config/firebase";
 
-/*Saves chat message (user or assistant)*/
+/*Saves chat message (user or assistant yay)*/
 export async function saveChatMessage(role, content) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("User not logged in");

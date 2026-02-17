@@ -85,7 +85,7 @@ export default function UserProfileScreen({ navigation, route }) {
         setFollowersCount(followersSnap.data().count);
         setFollowingCount(followingSnap.data().count);
 
-        // check if I follow them
+        // check if maile follow gareko xu ki xaina
         if (currentUid) {
           const rel = await getDoc(doc(db, "followers", userId, "users", currentUid));
           setIsFollowing(rel.exists());
@@ -257,7 +257,7 @@ export default function UserProfileScreen({ navigation, route }) {
               </Text>
             </Pressable>
 
-            {/* MESSAGE (below follow) */}
+            {/* MESSAGE */}
             <Pressable
               onPress={() =>
                 navigation.navigate("UserChat", {

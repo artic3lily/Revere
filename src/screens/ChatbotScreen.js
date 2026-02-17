@@ -51,7 +51,7 @@ export default function ChatbotScreen({ navigation }) {
     run();
   }, []);
 
-  // auto-scroll helper
+  // auto-scroll
   const listRef = useRef(null);
   const scrollToEnd = () => {
     requestAnimationFrame(() => {

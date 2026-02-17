@@ -14,7 +14,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
 
-      {/* Protected Admin Layout */}
+      {/* Admin Layout */}
       <Route
         path="/"
         element={

@@ -23,7 +23,7 @@ export default function Dashboard() {
         getCountFromServer(collection(db, "posts")),
       ]);
 
-      // suspended users count (simple)
+      // suspended users count
       const usersQ = query(collection(db, "users"), limit(8));
       const usersDocs = await getDocs(usersQ);
       const usersList = usersDocs.docs.map((d) => ({ id: d.id, ...d.data() }));

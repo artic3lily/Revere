@@ -35,7 +35,7 @@ export const ThemeProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    // Load theme preference from AsyncStorage
+    // Load theme from aasyncStorage
     const loadTheme = async () => {
       try {
         const saved = await AsyncStorage.getItem('theme');

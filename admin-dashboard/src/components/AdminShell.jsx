@@ -57,7 +57,7 @@ export default function AdminShell({ children }) {
     await signOut(auth);
   };
 
-  // ⏳ While checking auth
+  //While checking auth
   if (loading) {
     return (
       <div className="pageCenter">
@@ -69,12 +69,12 @@ export default function AdminShell({ children }) {
     );
   }
 
-  // 🔒 Not logged in
+  // Not logged in
   if (!auth.currentUser) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // 🚫 Logged in but not admin
+  // Logged in but not admin
   if (!isAdmin) {
     return <Navigate to="/not-admin" replace />;
   }

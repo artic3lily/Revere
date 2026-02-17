@@ -94,11 +94,10 @@ export default function LoginScreen({ navigation }) {
           );
           return;
         }
-        // If suspension expired, allow login (admin can set accountStatus back to active later)
+        // If suspension expired, allow login here admin can set accountStatus back to active later
       }
 
-      //If active (or suspension expired), do nothing:
-      // AppNavigator onAuthStateChanged will take user into app
+      //If active (or suspension expired), does ntg
     } catch (err) {
       Alert.alert("Login failed", err?.message ?? "Invalid credentials");
     } finally {

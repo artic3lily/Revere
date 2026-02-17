@@ -53,6 +53,7 @@ export const items = [
     price: "Rs. 800",
     image: { uri: 'https://tse4.mm.bing.net/th/id/OIP.KRM3dFbHhV-6wmOIUr4TowHaIf?cb=defcachec2&rs=1&pid=ImgDetMain&o=7&rm=3' }
   },
-  // Add more items the same way...
+  // add more in future enhancements 
+  // update in trending parts for the better view and explore plus serach
 ];
 

@@ -34,7 +34,7 @@ function normalizeTerm(s) {
 export default function SearchScreen({ navigation }) {
   const uid = auth.currentUser?.uid;
 
-  const [tab, setTab] = useState("people"); // people | posts
+  const [tab, setTab] = useState("people"); // people, posts
   const [term, setTerm] = useState("");
 
   // posts filters
@@ -55,7 +55,7 @@ export default function SearchScreen({ navigation }) {
   const gridGap = 8;
   const tileSize = Math.floor((width - 16 * 2 - gridGap * 2) / 3);
 
-  // ---------- SEARCH: PEOPLE ----------
+  // search people
   const searchPeople = async () => {
     const qTerm = normalizeTerm(term);
     if (!qTerm) {
@@ -89,10 +89,10 @@ export default function SearchScreen({ navigation }) {
       uSnap.forEach((d) => map.set(d.id, { id: d.id, ...d.data() }));
       nSnap.forEach((d) => map.set(d.id, { id: d.id, ...d.data() }));
 
-      // remove the user using themselves
+      // remove current user from results
       const list = Array.from(map.values()).filter((x) => x.id !== uid);
 
-      // small sorting: usernames that start with term first
+      // small sorting, usernames that start with term first
       list.sort((a, b) => {
         const au = (a.username || "").toLowerCase();
         const bu = (b.username || "").toLowerCase();
@@ -116,7 +116,7 @@ export default function SearchScreen({ navigation }) {
     const qTerm = normalizeTerm(term);
     const t = normalizeTerm(tag);
 
-    // posts search: uses category and/or tag
+    // posts search: uses category and or tag
     setLoading(true);
     try {
       const postsRef = collection(db, "posts");
@@ -183,7 +183,7 @@ export default function SearchScreen({ navigation }) {
         });
       }
 
-      // sort by createdAt fallback to clientCreatedAt (always applied)
+      // sort by createdAt fallback to clientCreatedAt
       list.sort((a, b) => {
         const at = a.createdAt?.toMillis?.() ?? a.clientCreatedAt ?? 0;
         const bt = b.createdAt?.toMillis?.() ?? b.clientCreatedAt ?? 0;
@@ -199,7 +199,7 @@ export default function SearchScreen({ navigation }) {
     }
   };
 
-  // run search on changes (small debounce feel)
+  // run search on change
   useEffect(() => {
     const tmr = setTimeout(() => {
       if (tab === "people") searchPeople();

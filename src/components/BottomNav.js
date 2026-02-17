@@ -56,7 +56,7 @@ export default function BottomNav({ navigation }) {
       return;
     }
 
-    // No orderBy = no index needed
+    // No orderBy = no index needed, remember man
     const q = query(collection(db, "threads"), where("members", "array-contains", uid));
 
     const unsub = onSnapshot(

@@ -61,7 +61,7 @@ export default function AppNavigator() {
       } catch (e) {
         console.log("Auth guard error:", e?.message || e);
 
-        // fail-safe
+        // remembee fail-safe
         await signOut(auth);
         setUser(null);
         setLoading(false);

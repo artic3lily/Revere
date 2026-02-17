@@ -81,7 +81,7 @@ export default function UserChatScreen({ navigation, route }) {
         [`unread.${uid}`]: 0,
       });
     } catch (e) {
-      // if thread doesn't exist yet, ensure then mark
+      // makign sure ki thread ma exists garxa
       try {
         await ensureThread();
         await updateDoc(doc(db, "threads", threadId), { [`unread.${uid}`]: 0 });
@@ -114,7 +114,6 @@ export default function UserChatScreen({ navigation, route }) {
     );
 
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
   // also mark read when screen comes back into focus

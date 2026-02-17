@@ -44,22 +44,12 @@ import {
 // ADDED (same BottomNav you use in HomeScreen)
 import BottomNav from "../components/BottomNav";
 
-/**
- * posts/{postId} {
- *  ownerId, ownerName, ownerUsername, ownerPhotoURL,
- *  caption, imageUrl, storagePath,
- *  price, category, tags[],
- *  createdAt (serverTimestamp), clientCreatedAt (number)
- * }
- */
-
 const CATEGORIES = ["Grunge", "Casual", "Elegant", "Chic", "Y2k"];
 
 function formatJoined(ts) {
   try {
     if (!ts) return "Joined recently";
     const d = ts?.toDate ? ts.toDate() : new Date(ts);
-    // simple, cute format
     return `Joined ${d.toLocaleString(undefined, { month: "short", year: "numeric" })}`;
   } catch {
     return "Joined recently";
@@ -76,7 +66,6 @@ export default function ProfileScreen({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
 
-  // ✅ ADDED: Filters state
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("All");
   const [tagQuery, setTagQuery] = useState("");
 
@@ -84,7 +73,7 @@ export default function ProfileScreen({ navigation }) {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
-  // Upload / progress
+  // Upload
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
 
@@ -117,7 +106,7 @@ export default function ProfileScreen({ navigation }) {
   const tileSize = Math.floor((width - 16 * 2 - gridGap * 2) / 3);
   const numCols = 3;
 
-  // ✅ ADDED: Filtered posts logic
+  // filtered logic
   const filteredPosts = useMemo(() => {
     let list = Array.isArray(posts) ? posts : [];
 
@@ -183,7 +172,7 @@ export default function ProfileScreen({ navigation }) {
         setFollowersCount(followersSnap.data().count);
         setFollowingCount(followingSnap.data().count);
 
-        // posts query (use whatever you already indexed)
+        // posts query (whatever that has  already indexed)
         const q = query(
           collection(db, "posts"),
           where("ownerId", "==", uid),
@@ -260,7 +249,7 @@ export default function ProfileScreen({ navigation }) {
     return { url, storagePath };
   };
 
-  // ---------- Profile edit ----------
+  // profile edits
   const openEditProfile = () => {
     setEditFullName(profile?.fullName ?? "");
     setEditAbout(profile?.about ?? "");
@@ -322,7 +311,7 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  // ---------- Posts ----------
+  // POSTS edits
   const openAddPost = () => {
     setNewCaption("");
     setNewImage(null);
@@ -387,7 +376,7 @@ export default function ProfileScreen({ navigation }) {
 
       setModalOpen(false);
 
-      // ✅ Optional: reset filters to see new post instantly
+      // op, reset refresh to show new posts in feed
       setActiveCategoryFilter("All");
       setTagQuery("");
     } catch (e) {
@@ -424,7 +413,7 @@ export default function ProfileScreen({ navigation }) {
     ]);
   };
 
-  // --- Post Detail helpers ---
+  // post detail helpers
   const openPostDetail = async (post) => {
     setActivePost(post);
     setDetailOpen(true);
@@ -602,7 +591,7 @@ export default function ProfileScreen({ navigation }) {
 
       <Text style={styles.sectionTitle}>Your Posts</Text>
 
-      {/* ✅ ADDED: Filters UI */}
+      {/* Filters UI */}
       <View style={styles.filtersWrap}>
         <TextInput
           value={tagQuery}
@@ -791,9 +780,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* =========================
-          Add Post Modal
-         ========================= */}
+      {/* Add Post Modal */}
       <Modal visible={modalOpen} transparent animationType="fade">
         <TouchableWithoutFeedback
           onPress={() => {
@@ -1114,7 +1101,7 @@ const styles = StyleSheet.create({
     color: "#111",
   },
 
-  // ✅ ADDED: Filter styles
+  // filter styles
   filtersWrap: { marginTop: 12, marginBottom: 8 },
   filterInput: {
     borderWidth: 1,
