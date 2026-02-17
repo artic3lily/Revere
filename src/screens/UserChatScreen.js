@@ -21,6 +21,8 @@ import {
   onSnapshot,
   query,
   orderBy,
+  updateDoc,
+  increment,
 } from "firebase/firestore";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -44,60 +46,86 @@ export default function UserChatScreen({ navigation, route }) {
 
   const listRef = useRef(null);
 
-  // Load messages realtime
-  useEffect(() => {
-    if (!threadId) return;
-
-    const q = query(
-      collection(db, "threads", threadId, "messages"),
-      orderBy("createdAt", "asc")
-    );
-
-    const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setMessages(list);
-      setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 50);
-    });
-
-    return () => unsub();
-  }, [threadId]);
-
-  const ensureThreadDocs = async () => {
+  // Create / merge thread doc (top-level)
+  const ensureThread = async () => {
     if (!uid || !otherUserId || !threadId) return;
 
-    // we store “inbox items” for each user so InboxScreen works
-    const myThreadRef = doc(db, "threads", uid, "chats", threadId);
-    const otherThreadRef = doc(db, "threads", otherUserId, "chats", threadId);
-
-    // get my profile (for username)
     const meSnap = await getDoc(doc(db, "users", uid));
     const me = meSnap.exists() ? meSnap.data() : {};
     const myUsername = me?.username || auth.currentUser?.email?.split("@")[0] || "me";
 
     await setDoc(
-      myThreadRef,
+      doc(db, "threads", threadId),
       {
-        threadId,
-        otherUserId,
-        otherUsername: otherUsername || "user",
-        updatedAt: serverTimestamp(),
+        members: [uid, otherUserId],
+        memberUsernames: {
+          [uid]: myUsername,
+          [otherUserId]: otherUsername || "user",
+        },
         lastMessage: "",
-      },
-      { merge: true }
-    );
-
-    await setDoc(
-      otherThreadRef,
-      {
-        threadId,
-        otherUserId: uid,
-        otherUsername: myUsername,
         updatedAt: serverTimestamp(),
-        lastMessage: "",
+        unread: {
+          [uid]: 0,
+          [otherUserId]: 0,
+        },
       },
       { merge: true }
     );
   };
+
+  // Mark as read when opening chat
+  const markRead = async () => {
+    if (!uid || !threadId) return;
+    try {
+      await updateDoc(doc(db, "threads", threadId), {
+        [`unread.${uid}`]: 0,
+      });
+    } catch (e) {
+      // if thread doesn't exist yet, ensure then mark
+      try {
+        await ensureThread();
+        await updateDoc(doc(db, "threads", threadId), { [`unread.${uid}`]: 0 });
+      } catch {}
+    }
+  };
+
+  // Load messages realtime
+  useEffect(() => {
+    if (!threadId) return;
+
+    // make sure thread exists + reset unread
+    ensureThread().then(markRead);
+
+    const q = query(
+      collection(db, "threads", threadId, "messages"),
+      orderBy("clientCreatedAt", "asc")
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setMessages(list);
+
+        // if any new messages, keep bottom view
+        setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 50);
+      },
+      (e) => console.log("Messages listener error:", e?.code, e?.message)
+    );
+
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
+
+  // also mark read when screen comes back into focus
+  useEffect(() => {
+    if (!threadId) return;
+    const unsub = navigation.addListener("focus", () => {
+      markRead();
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, threadId]);
 
   const send = async () => {
     if (!uid || !otherUserId || !threadId) return;
@@ -108,31 +136,27 @@ export default function UserChatScreen({ navigation, route }) {
     setText("");
 
     try {
-      await ensureThreadDocs();
+      await ensureThread();
 
       await addDoc(collection(db, "threads", threadId, "messages"), {
         text: msg,
         from: uid,
         to: otherUserId,
         createdAt: serverTimestamp(),
+        clientCreatedAt: Date.now(),
       });
 
-      // update both inbox summaries
-      await Promise.all([
-        setDoc(
-          doc(db, "threads", uid, "chats", threadId),
-          { lastMessage: msg, updatedAt: serverTimestamp() },
-          { merge: true }
-        ),
-        setDoc(
-          doc(db, "threads", otherUserId, "chats", threadId),
-          { lastMessage: msg, updatedAt: serverTimestamp() },
-          { merge: true }
-        ),
-      ]);
+      // update thread meta + unread counts
+      await updateDoc(doc(db, "threads", threadId), {
+        lastMessage: msg,
+        updatedAt: serverTimestamp(),
+        // sender read stays 0
+        [`unread.${uid}`]: 0,
+        // receiver unread increments
+        [`unread.${otherUserId}`]: increment(1),
+      });
     } catch (e) {
-      console.log("Send message error:", e?.message || e);
-      // optional: restore typed text if failed
+      console.log("Send message error:", e?.code, e?.message || e);
       setText(msg);
     } finally {
       setSending(false);
@@ -147,9 +171,15 @@ export default function UserChatScreen({ navigation, route }) {
           <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.iconBtn}>
             <Feather name="arrow-left" size={20} color="#111" />
           </Pressable>
-          <Text style={styles.title} numberOfLines={1}>
-            @{otherUsername || "user"}
-          </Text>
+          <Pressable
+            onPress={() => navigation.navigate("UserProfile", { userId: otherUserId })}
+            hitSlop={10}
+          >
+            <Text style={styles.title} numberOfLines={1}>
+              @{otherUsername || "user"}
+            </Text>
+          </Pressable>
+
           <View style={{ width: 40 }} />
         </View>
 
@@ -163,6 +193,7 @@ export default function UserChatScreen({ navigation, route }) {
             data={messages}
             keyExtractor={(it) => it.id}
             contentContainerStyle={{ paddingBottom: 12 }}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => {
               const mine = item.from === uid;
               return (

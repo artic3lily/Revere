@@ -3,7 +3,6 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// 🔥 Replace with your Firebase Web config (Firebase Console > Project settings > Web app)
 const firebaseConfig = {
   apiKey: "AIzaSyAYsLZRqR6lmIoEMnzDoZkpywRZaoLZLWg",
   authDomain: "revere-aa96b.firebaseapp.com",

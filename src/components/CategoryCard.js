@@ -17,7 +17,7 @@ export default function CategoryCard({ name, image, onPress, active = false }) {
             onError={() => console.log("❌ Category image failed:", name, image?.uri)}
           />
         ) : (
-          // ✅ fallback so you KNOW if image prop is missing
+          // img prop misinf
           <Text style={styles.fallbackText}>{name?.[0] ?? "?"}</Text>
         )}
       </View>
@@ -31,7 +31,7 @@ export default function CategoryCard({ name, image, onPress, active = false }) {
 
 const styles = StyleSheet.create({
   card: {
-    width: 88, // ✅ bigger card
+    width: 88, 
     alignItems: "center",
     paddingVertical: 6,
     borderRadius: 16,
@@ -41,8 +41,8 @@ const styles = StyleSheet.create({
   cardActive: {},
 
   iconBox: {
-    width: 74, // ✅ bigger image box
-    height: 74, // ✅ bigger image box
+    width: 74, 
+    height: 74,
     borderRadius: 20,
     backgroundColor: "#f2f2f2",
     marginBottom: 8,

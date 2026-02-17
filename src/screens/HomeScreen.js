@@ -148,7 +148,7 @@ export default function HomeScreen({ navigation }) {
             𝓡𝓮𝓿𝓮𝓻𝓮
           </Text>
 
-          {/* RIGHT: Search + Chatbot + Cart */}
+          {/* Search + Chatbot */}
           <View style={styles.headerRight}>
             <Pressable hitSlop={10} onPress={() => navigation.navigate("Search")}>
               <Image style={[styles.icon, { tintColor: theme.icon }]} source={searchImg} />
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
   heartWrap: { position: 'absolute', top: 8, right: 8, zIndex: 3 },
   heartBtn: { width: 34, height: 34, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderWidth:1, borderColor:'#eee' },
 
-  // Detail modal styles (small subset)
+  // Detail modal styles
   detailScreen: { flex: 1, backgroundColor: '#fff' },
   detailTopbar: {
     paddingTop: 50,

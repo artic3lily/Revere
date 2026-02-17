@@ -89,7 +89,7 @@ export default function SearchScreen({ navigation }) {
       uSnap.forEach((d) => map.set(d.id, { id: d.id, ...d.data() }));
       nSnap.forEach((d) => map.set(d.id, { id: d.id, ...d.data() }));
 
-      // remove yourself from results
+      // remove the user using themselves
       const list = Array.from(map.values()).filter((x) => x.id !== uid);
 
       // small sorting: usernames that start with term first
@@ -104,20 +104,19 @@ export default function SearchScreen({ navigation }) {
 
       setPeople(list);
     } catch (e) {
-      // if index required, Firestore will show link in console — create it once
+      // if index required, firestore created link once
       setPeople([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // ---------- SEARCH: POSTS ----------
+  // posts search
   const searchPosts = async () => {
     const qTerm = normalizeTerm(term);
     const t = normalizeTerm(tag);
 
     // posts search: uses category and/or tag
-    // Tag search now supports partial matching via client-side filtering
     setLoading(true);
     try {
       const postsRef = collection(db, "posts");
@@ -153,7 +152,7 @@ export default function SearchScreen({ navigation }) {
         );
       } else if (qTerm) {
         // if user typed something in search bar but no filters,
-        // show newest posts (simple discovery)
+        // show newest posts 
         qArr.push(query(postsRef, orderBy("createdAt", "desc"), limit(60)));
       } else {
         setPosts([]);
@@ -167,7 +166,7 @@ export default function SearchScreen({ navigation }) {
 
       let list = Array.from(map.values());
 
-      // optional: if term exists, filter by caption/ownerUsername client-side (cute extra)
+      // if term exists, filter by caption/ownerUsername client-side
       if (qTerm) {
         list = list.filter((p) => {
           const cap = normalizeTerm(p.caption);
@@ -177,7 +176,6 @@ export default function SearchScreen({ navigation }) {
         });
       }
 
-      // ✅ NEW: Client-side tag filtering for partial matches (e.g., "y2" finds "y2k")
       if (t) {
         list = list.filter((p) => {
           const tags = Array.isArray(p?.tags) ? p.tags : [];

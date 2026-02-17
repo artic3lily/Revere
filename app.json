@@ -23,7 +23,25 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "aa7bcfc6-8289-4b1e-b64d-de9ad3bce732"
+      }
+    },
+    "owner": "suyana",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/aa7bcfc6-8289-4b1e-b64d-de9ad3bce732"
     }
   }
 }

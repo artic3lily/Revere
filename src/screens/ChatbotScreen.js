@@ -27,7 +27,7 @@ export default function ChatbotScreen({ navigation }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // --- Typing dots animation state ---
+
   const [dots, setDots] = useState(".");
   useEffect(() => {
     if (!loading) return;
@@ -113,7 +113,7 @@ export default function ChatbotScreen({ navigation }) {
         keyboardVerticalOffset={Platform.OS === "android" ? 0 : 80}
       >
         <View style={styles.container}>
-          {/* ✅ Header with back arrow */}
+          {/* Header arrow */}
           <View style={styles.topBar}>
             <Pressable
               hitSlop={12}

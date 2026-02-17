@@ -17,6 +17,11 @@ import CartScreen from "../screens/CartScreen";
 import UserChatScreen from "../screens/UserChatScreen";
 import ChatbotScreen from "../screens/ChatbotScreen";
 import InboxScreen from "../screens/InboxScreen";
+import { doc, getDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { db } from "../config/firebase";
+
+
 
 const Stack = createNativeStackNavigator();
 
@@ -25,12 +30,47 @@ export default function AppNavigator() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      try {
+        if (!u) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        //Check Firestore user status
+        const snap = await getDoc(doc(db, "users", u.uid));
+        const data = snap.exists() ? snap.data() : null;
+
+        const status = data?.accountStatus || "active";
+
+        if (status === "banned") {
+          const reason = data?.banReason ? `\nReason: ${data.banReason}` : "";
+          alert("Your account has been banned." + reason);
+
+          await signOut(auth);
+
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        //allowed
+        setUser(u);
+        setLoading(false);
+      } catch (e) {
+        console.log("Auth guard error:", e?.message || e);
+
+        // fail-safe
+        await signOut(auth);
+        setUser(null);
+        setLoading(false);
+      }
     });
+
     return unsub;
   }, []);
+
 
   if (loading) {
     return (

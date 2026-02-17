@@ -1,45 +1,35 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
 
-export default function AdminTopbar() {
+export default function AdminTopBar({ adminUser, onLogout }) {
+  const display =
+    adminUser?.fullName?.trim() ||
+    (adminUser?.email ? adminUser.email.split("@")[0] : "Admin");
+
   return (
-    <div style={styles.bar}>
-      <div style={{ fontWeight: 900 }}>Revere Admin</div>
-
-      <div style={styles.links}>
-        <Link style={styles.link} to="/">Dashboard</Link>
-        <Link style={styles.link} to="/users">Users</Link>
-        <Link style={styles.link} to="/posts">Posts</Link>
+    <header className="topbar">
+      <div className="topLeft">
+        <div className="topTitle">Control Center</div>
+        <div className="topHint">Monitor Revere activity & moderate safely</div>
       </div>
 
-      <button style={styles.btn} onClick={() => signOut(auth)}>
-        Logout
-      </button>
-    </div>
+      <div className="topRight">
+        <div className="searchBox">
+          <span className="searchIcon">⌕</span>
+          <input placeholder="Search users, posts, keywords…" />
+        </div>
+
+        <div className="adminChip">
+          <div className="adminAvatar">{String(display).slice(0, 1).toUpperCase()}</div>
+          <div className="adminMeta">
+            <div className="adminName">{display}</div>
+            <div className="adminRole">Admin</div>
+          </div>
+        </div>
+
+        <button className="btnGhost" onClick={onLogout}>
+          Logout
+        </button>
+      </div>
+    </header>
   );
 }
-
-const styles = {
-  bar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    padding: 14,
-    borderBottom: "1px solid #eee",
-    fontFamily: "system-ui",
-  },
-  links: { display: "flex", gap: 12 },
-  link: { textDecoration: "none", color: "#111", fontWeight: 800 },
-  btn: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #111",
-    background: "#111",
-    color: "#fff",
-    fontWeight: 900,
-    cursor: "pointer",
-  },
-};

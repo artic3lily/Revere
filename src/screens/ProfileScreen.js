@@ -684,7 +684,7 @@ export default function ProfileScreen({ navigation }) {
               Post
             </Text>
 
-            {/* delete only for your own post */}
+            {/* delete only own post */}
             <View style={{ width: 40 }}>
               {activePost?.ownerId === uid ? (
                 <Pressable
@@ -906,9 +906,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* =========================
-          Edit Profile Modal
-         ========================= */}
+      {/* Edit Profile Modal*/}
       <Modal visible={editOpen} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setEditOpen(false)}>
           <View style={styles.modalBackdrop} />
@@ -956,7 +954,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* ADDED: Spacer + BottomNav like HomeScreen */}
+      {/* Spacer + BottomNav like HomeScreen */}
       <View style={{ height: 0 }} />
       <BottomNav navigation={navigation} />
     </View>

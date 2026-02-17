@@ -1,6 +1,3 @@
-// UserProfileScreen.js  ✅ FULL COPY-PASTE (with Follow + Message button)
-// NOTE: This screen shows OTHER USER profile (not your own)
-
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -439,7 +436,7 @@ const styles = StyleSheet.create({
   joined: { marginTop: 6, fontSize: 12, fontWeight: "800", color: "#111", opacity: 0.75 },
   about: { marginTop: 8, fontSize: 12, fontWeight: "800", color: "#111", opacity: 0.85 },
 
-  // ✅ Follow + Message stack
+  //Follow + Message stack
   actionStack: {
     gap: 8,
     alignItems: "stretch",

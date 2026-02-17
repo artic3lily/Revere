@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { auth, db } from "../config/firebase";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 
 export default function InboxScreen({ navigation }) {
   const uid = auth.currentUser?.uid;
@@ -13,9 +13,9 @@ export default function InboxScreen({ navigation }) {
   useEffect(() => {
     if (!uid) return;
 
-    // threads/{uid}/chats (subcollection)
     const q = query(
-      collection(db, "threads", uid, "chats"),
+      collection(db, "threads"),
+      where("members", "array-contains", uid),
       orderBy("updatedAt", "desc")
     );
 
@@ -27,7 +27,7 @@ export default function InboxScreen({ navigation }) {
         setLoading(false);
       },
       (e) => {
-        console.log("Inbox load error:", e?.message || e);
+        console.log("Inbox load error:", e?.code, e?.message || e);
         setLoading(false);
       }
     );
@@ -35,32 +35,45 @@ export default function InboxScreen({ navigation }) {
     return () => unsub();
   }, [uid]);
 
-  const renderItem = ({ item }) => (
-    <Pressable
-      onPress={() =>
-        navigation.navigate("UserChat", {
-          otherUserId: item.otherUserId,
-          otherUsername: item.otherUsername,
-          threadId: item.id,
-        })
-      }
-      style={styles.thread}
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name} numberOfLines={1}>
-          @{item.otherUsername || "user"}
-        </Text>
-        <Text style={styles.preview} numberOfLines={1}>
-          {item.lastMessage || "Say hi 👋"}
-        </Text>
-      </View>
-      <Feather name="chevron-right" size={18} color="#111" style={{ opacity: 0.6 }} />
-    </Pressable>
-  );
+  const renderItem = ({ item }) => {
+    const otherId = item.members?.find((m) => m !== uid);
+    const otherUsername =
+      item.memberUsernames?.[otherId] || "user";
+
+    const unread = item.unread?.[uid] || 0;
+
+    return (
+      <Pressable
+        onPress={() =>
+          navigation.navigate("UserChat", {
+            otherUserId: otherId,
+            otherUsername,
+          })
+        }
+        style={styles.thread}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name} numberOfLines={1}>
+            @{otherUsername}
+          </Text>
+          <Text style={styles.preview} numberOfLines={1}>
+            {item.lastMessage || "Say hi 👋"}
+          </Text>
+        </View>
+
+        {unread > 0 && (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadText}>{unread > 99 ? "99+" : String(unread)}</Text>
+          </View>
+        )}
+
+        <Feather name="chevron-right" size={18} color="#111" style={{ opacity: 0.6 }} />
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.screen}>
-      {/* Topbar */}
       <View style={styles.topbar}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.iconBtn}>
           <Feather name="arrow-left" size={20} color="#111" />
@@ -124,4 +137,15 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 13, fontWeight: "900", color: "#111" },
   preview: { marginTop: 4, fontSize: 12, fontWeight: "800", color: "#111", opacity: 0.65 },
+
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#FF3B30",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  unreadText: { color: "#fff", fontSize: 11, fontWeight: "900" },
 });

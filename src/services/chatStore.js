@@ -10,9 +10,7 @@ import {
 import { db } from "../config/firebase";
 import { auth } from "../config/firebase";
 
-/**
- * Save a chat message (user or assistant)
- */
+/*Saves chat message (user or assistant)*/
 export async function saveChatMessage(role, content) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("User not logged in");
@@ -26,9 +24,7 @@ export async function saveChatMessage(role, content) {
   });
 }
 
-/**
- * Load last N chat messages
- */
+/*Load last ndd chat messages*/
 export async function loadChatMessages(max = 50) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("User not logged in");

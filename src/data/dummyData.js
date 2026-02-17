@@ -1,4 +1,4 @@
-// src/constants/dummydata.js   (or wherever it is)
+// src/constants/dummydata.js  data of home paigeee
 
 export const categories = [
   {

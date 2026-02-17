@@ -9,8 +9,13 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../../config/firebase";
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut,
+} from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../../config/firebase";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -20,6 +25,16 @@ export default function LoginScreen({ navigation }) {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const formatUntil = (ts) => {
+    try {
+      if (!ts) return null;
+      const d = ts?.toDate ? ts.toDate() : new Date(ts);
+      return d.toLocaleString();
+    } catch {
+      return null;
+    }
+  };
+
   const onLogin = async () => {
     if (!email.trim() || !password) {
       Alert.alert("Missing fields", "Please enter email and password.");
@@ -28,7 +43,62 @@ export default function LoginScreen({ navigation }) {
 
     try {
       setLoading(true);
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+
+      // 1) Auth login
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const uid = cred.user?.uid;
+
+      if (!uid) {
+        await signOut(auth);
+        Alert.alert("Login failed", "Could not verify your account. Try again.");
+        return;
+      }
+
+      // 2) Check Firestore user status
+      const snap = await getDoc(doc(db, "users", uid));
+
+      if (!snap.exists()) {
+        await signOut(auth);
+        Alert.alert(
+          "Account missing",
+          "Your user profile is not set up yet. Please sign up again or contact support."
+        );
+        return;
+      }
+
+      const u = snap.data() || {};
+      const status = String(u.accountStatus || "active").toLowerCase();
+
+      // 3) Ban / suspend handling
+      if (status === "banned") {
+        const reason = u.banReason ? `\n\nReason: ${u.banReason}` : "";
+        await signOut(auth);
+        Alert.alert(
+          "Account banned",
+          `Your account has been banned.${reason}\n\nIf you think this is a mistake, contact support.`
+        );
+        return;
+      }
+
+      if (status === "suspended") {
+        const until = u.suspendedUntil;
+        const untilDate = until?.toDate ? until.toDate() : null;
+
+        // If suspendedUntil exists and is still in the future => block
+        if (untilDate && untilDate.getTime() > Date.now()) {
+          const untilText = formatUntil(until) || "later";
+          await signOut(auth);
+          Alert.alert(
+            "Account suspended",
+            `Your account is temporarily suspended until ${untilText}.\n\nPlease try again later.`
+          );
+          return;
+        }
+        // If suspension expired, allow login (admin can set accountStatus back to active later)
+      }
+
+      //If active (or suspension expired), do nothing:
+      // AppNavigator onAuthStateChanged will take user into app
     } catch (err) {
       Alert.alert("Login failed", err?.message ?? "Invalid credentials");
     } finally {
@@ -67,7 +137,6 @@ export default function LoginScreen({ navigation }) {
             keyboardType="email-address"
           />
 
-          {/* Password */}
           <UnderlinePasswordInput
             placeholder="Password"
             value={password}
@@ -77,7 +146,10 @@ export default function LoginScreen({ navigation }) {
           />
 
           <View style={styles.row}>
-            <Pressable style={styles.rememberRow} onPress={() => setRemember((r) => !r)}>
+            <Pressable
+              style={styles.rememberRow}
+              onPress={() => setRemember((r) => !r)}
+            >
               <View style={[styles.checkbox, remember && styles.checkboxActive]} />
               <Text style={styles.smallText}>Remember me</Text>
             </Pressable>
@@ -152,7 +224,6 @@ const styles = StyleSheet.create({
   },
   line: { height: 1, backgroundColor: "#111", opacity: 0.65 },
 
-  // ✅ FIXED PASSWORD STYLES
   passRow: {
     flexDirection: "row",
     alignItems: "center",
