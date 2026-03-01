@@ -1,6 +1,6 @@
 // admin-dashboard/src/pages/Posts.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { collection, deleteDoc, doc, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, limit, orderBy, query, collectionGroup } from "firebase/firestore";
 import { db } from "../firebase";
 
 export default function Posts() {
@@ -8,6 +8,7 @@ export default function Posts() {
   const [loading, setLoading] = useState(true);
 
   const [selected, setSelected] = useState(null);
+  const [zoomedImage, setZoomedImage] = useState(null);
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(false);
 
@@ -65,7 +66,40 @@ export default function Posts() {
 
     try {
       setDeleting(true);
+
+      // 1. Delete the post itself
       await deleteDoc(doc(db, "posts", post.id));
+
+      // 2. Cascade delete from all users' carts
+      try {
+        const cartQ = query(collectionGroup(db, "cart"));
+        const cartSnap = await getDocs(cartQ);
+        const batchDeletes = [];
+        cartSnap.forEach((d) => {
+          if (d.id === post.id || d.data().postId === post.id) {
+            batchDeletes.push(deleteDoc(d.ref));
+          }
+        });
+        await Promise.all(batchDeletes);
+      } catch (e) {
+        console.log("Failed to clean up carts:", e);
+      }
+
+      // 3. Cascade delete from all users' wishlists
+      try {
+        const wishlistQ = query(collectionGroup(db, "wishlist"));
+        const wishlistSnap = await getDocs(wishlistQ);
+        const batchDeletes = [];
+        wishlistSnap.forEach((d) => {
+          if (d.id === post.id || d.data().postId === post.id) {
+            batchDeletes.push(deleteDoc(d.ref));
+          }
+        });
+        await Promise.all(batchDeletes);
+      } catch (e) {
+        console.log("Failed to clean up wishlists:", e);
+      }
+
       setPosts((prev) => prev.filter((x) => x.id !== post.id));
       setSelected(null);
       alert("Post deleted ✅");
@@ -153,12 +187,12 @@ export default function Posts() {
       {/* MODAL */}
       {selected && (
         <div className="modalBackdrop" onClick={() => setSelected(null)}>
-          <div className="modalCard" onClick={(e) => e.stopPropagation()}>
+          <div className="modalCard modalCardWide" onClick={(e) => e.stopPropagation()}>
             <div className="modalTop">
               <div>
-                <div className="modalTitle">Post Details</div>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  @{selected.ownerUsername || "user"} • {selected.id}
+                <div className="modalTitle" style={{ fontWeight: 900 }}>Post Details</div>
+                <div className="muted small" style={{ marginTop: 6 }}>
+                  Posted: {fmtDate(selected.createdAt || selected.clientCreatedAt)}
                 </div>
               </div>
 
@@ -167,69 +201,103 @@ export default function Posts() {
               </button>
             </div>
 
-            <div className="modalBody">
-              {/* Left: Image */}
-              <div className="detailImageWrap">
+            <div className="modalBody" style={{ padding: 16, overflowY: "auto", maxHeight: "70vh" }}>
+
+              {/* Top Details Card */}
+              <div className="card" style={{ padding: 14, marginBottom: 16 }}>
+                <div className="kvList">
+                  <div className="kv">
+                    <div className="k">Seller</div>
+                    <div className="v" style={{ fontWeight: 600 }}>@{selected.ownerUsername || "user"}</div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">Category</div>
+                    <div className="v">
+                      <span className="pill">{selected.category || "—"}</span>
+                    </div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">Price</div>
+                    <div className="v" style={{ fontWeight: "bold", color: "#fff" }}>
+                      {typeof selected.price === "number" ? `Rs. ${selected.price}` : "—"}
+                    </div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">Tags</div>
+                    <div className="v">
+                      {Array.isArray(selected.tags) && selected.tags.length > 0
+                        ? selected.tags.map((t) => `#${t}`).join(" ")
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Caption Card */}
+              <div className="card" style={{ padding: 14, marginBottom: 16 }}>
+                <div style={{ fontWeight: 900, marginBottom: 8 }}>Caption</div>
+                <p style={{ whiteSpace: "pre-wrap", background: "#f5f5f5", color: "#111", padding: 12, borderRadius: 8, margin: 0 }}>
+                  {selected.caption?.trim()?.length ? selected.caption : "No caption provided."}
+                </p>
+              </div>
+
+              {/* Image Card */}
+              <div className="card" style={{ padding: 14 }}>
+                <div style={{ fontWeight: 900, marginBottom: 8 }}>Product Image</div>
                 {selected.imageUrl ? (
-                  <img className="detailImage" src={selected.imageUrl} alt="post" />
+                  <img
+                    src={selected.imageUrl}
+                    alt="Product"
+                    onClick={() => setZoomedImage(selected.imageUrl)}
+                    style={{ maxWidth: "100%", maxHeight: 300, borderRadius: 8, objectFit: "contain", border: "1px solid #eee", cursor: "zoom-in" }}
+                  />
                 ) : (
-                  <div className="detailImagePh">No image</div>
+                  <p className="muted small">No image uploaded.</p>
                 )}
               </div>
 
-              {/* Right: Info */}
-              <div className="detailInfo">
-                <div className="pillRow">
-                  {typeof selected.price === "number" && (
-                    <span className="pillDark">Rs. {selected.price}</span>
-                  )}
-                  {selected.category && <span className="pill">{selected.category}</span>}
-                </div>
-
-                <div className="detailBlock">
-                  <div className="label">Caption</div>
-                  <div className="value">{selected.caption?.trim()?.length ? selected.caption : "—"}</div>
-                </div>
-
-                <div className="detailBlock">
-                  <div className="label">Tags</div>
-                  <div className="value">
-                    {Array.isArray(selected.tags) && selected.tags.length > 0
-                      ? selected.tags.map((t) => `#${t}`).join(" ")
-                      : "—"}
-                  </div>
-                </div>
-
-                <div className="detailBlock">
-                  <div className="label">Owner</div>
-                  <div className="value">
-                    @{selected.ownerUsername || "user"} • {selected.ownerId || "—"}
-                  </div>
-                </div>
-
-                <div className="detailBlock">
-                  <div className="label">Created</div>
-                  <div className="value">{fmtDate(selected.createdAt || selected.clientCreatedAt)}</div>
-                </div>
-
-                <div className="detailActions">
-                  <button
-                    className="btnDanger"
-                    onClick={() => onDeletePost(selected)}
-                    disabled={deleting}
-                    type="button"
-                    title="Delete post from Firestore"
-                  >
-                    {deleting ? "Deleting…" : "Delete Post"}
-                  </button>
-                </div>
-
-                <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                  Tip: need to add more info
-                </div>
+              <div className="rowActions" style={{ marginTop: 24, justifyContent: "flex-end" }}>
+                <button
+                  className="btnSmall danger"
+                  onClick={() => onDeletePost(selected)}
+                  disabled={deleting}
+                  type="button"
+                  title="Delete post from Firestore"
+                  style={{ padding: "4px 12px", minHeight: "28px" }}
+                >
+                  {deleting ? "Deleting…" : "Delete Post"}
+                </button>
               </div>
+
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Zoomed Image Lightbox */}
+      {zoomedImage && (
+        <div
+          className="modalBackdrop"
+          style={{ zIndex: 9999, padding: 20, backgroundColor: "rgba(0,0,0,0.8)" }}
+          onClick={() => setZoomedImage(null)}
+        >
+          <button
+            style={{ position: "absolute", top: 20, right: 30, background: "none", border: "none", color: "white", fontSize: 24, fontWeight: "bold", cursor: "pointer" }}
+            onClick={() => setZoomedImage(null)}
+          >
+            ✕
+          </button>
+          <img
+            src={zoomedImage}
+            alt="Zoomed Product View"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              cursor: "default"
+            }}
+          />
         </div>
       )}
     </div>

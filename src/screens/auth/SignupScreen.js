@@ -49,6 +49,7 @@ export default function SignupScreen({ navigation }) {
         fullName: fullName.trim(),
         username: username.trim().toLowerCase(),
         role: "user",
+        accountStatus: "active",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

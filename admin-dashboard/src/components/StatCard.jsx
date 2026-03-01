@@ -1,8 +1,12 @@
 import React from "react";
 
-export default function StatCard({ label, value, hint, icon }) {
+export default function StatCard({ label, value, hint, icon, onClick }) {
   return (
-    <div className="card statCard">
+    <div
+      className="card statCard"
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : undefined}
+    >
       <div className="statTop">
         <div className="statIcon">{icon}</div>
         <div className="statLabel">{label}</div>

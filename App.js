@@ -1,10 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { onAuthStateChanged } from "firebase/auth";
 
 import { auth } from "./src/config/firebase";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { ThemeProvider } from "./src/context/ThemeContext";
+import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
+
+function MainApp() {
+  const { isDark } = useTheme();
+  return (
+    <>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <AppNavigator />
+    </>
+  );
+}
 
 export default function App() {
   const [checking, setChecking] = useState(true);
@@ -26,7 +37,7 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AppNavigator />
+      <MainApp />
     </ThemeProvider>
   );
 }

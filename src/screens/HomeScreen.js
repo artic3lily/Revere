@@ -29,6 +29,7 @@ import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
 import CategoryCard from "../components/CategoryCard";
+
 import ItemCard from "../components/ItemCard";
 import BottomNav from "../components/BottomNav";
 import { categories, items } from "../data/dummyData";
@@ -332,7 +333,7 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff" },
+  screen: { flex: 1 },
 
   content: {
     paddingTop: 44,
@@ -464,7 +465,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#eee',
-    backgroundColor: '#fff',
     marginBottom: 8,
   },
   gridImg: { width: '100%', height: 160, backgroundColor: '#f2f2f2' },
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   heartBtn: { width: 34, height: 34, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderWidth:1, borderColor:'#eee' },
 
   // Detail modal styles
-  detailScreen: { flex: 1, backgroundColor: '#fff' },
+  detailScreen: { flex: 1 },
   detailTopbar: {
     paddingTop: 50,
     paddingHorizontal: 16,
@@ -517,7 +517,6 @@ const styles = StyleSheet.create({
   drawerPanel: {
     width: "72%", // ~half-ish drawer
     height: "100%",
-    backgroundColor: "#fff",
     paddingTop: 54,
     paddingHorizontal: 16,
     borderTopRightRadius: 22,
@@ -558,7 +557,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginBottom: 10,
-    backgroundColor: "#fff",
   },
   drawerBtnDanger: {
     borderColor: "#111",

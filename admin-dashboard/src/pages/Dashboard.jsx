@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import StatCard from "../components/StatCard";
 import Table from "../components/Table";
 import { db } from "../firebase";
-import { collection, getCountFromServer, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { collection, getCountFromServer, getDocs, limit, orderBy, query, where } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     users: 0,
     posts: 0,
@@ -18,17 +20,17 @@ export default function Dashboard() {
   useEffect(() => {
     const run = async () => {
       // counts
-      const [usersSnap, postsSnap] = await Promise.all([
+      const [usersSnap, postsSnap, reportsSnap, suspendedSnap] = await Promise.all([
         getCountFromServer(collection(db, "users")),
         getCountFromServer(collection(db, "posts")),
+        getCountFromServer(collection(db, "reports")),
+        getCountFromServer(query(collection(db, "users"), where("accountStatus", "==", "suspended"))),
       ]);
 
-      // suspended users count
+      // recent users
       const usersQ = query(collection(db, "users"), limit(8));
       const usersDocs = await getDocs(usersQ);
       const usersList = usersDocs.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-      const suspendedCount = usersList.filter((u) => u.status === "suspended").length;
 
       // recent posts
       const postsQ = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(8));
@@ -38,8 +40,8 @@ export default function Dashboard() {
       setStats({
         users: usersSnap.data().count,
         posts: postsSnap.data().count,
-        reported: 0, // (later we can add reports collection)
-        suspended: suspendedCount,
+        reported: reportsSnap.data().count,
+        suspended: suspendedSnap.data().count,
       });
 
       setRecentUsers(usersList);
@@ -71,10 +73,10 @@ export default function Dashboard() {
   return (
     <div className="dash">
       <div className="grid4">
-        <StatCard label="Total Users" value={stats.users} hint="Registered accounts" icon="👥" />
-        <StatCard label="Total Posts" value={stats.posts} hint="Listings uploaded" icon="🧥" />
-        <StatCard label="Suspended" value={stats.suspended} hint="Users limited by admin" icon="⛔" />
-        <StatCard label="Reports" value={stats.reported} hint="Coming next" icon="🚩" />
+        <StatCard label="Total Users" value={stats.users} hint="Registered accounts" icon="👥" onClick={() => navigate('/users')} />
+        <StatCard label="Total Posts" value={stats.posts} hint="Listings uploaded" icon="🧥" onClick={() => navigate('/posts')} />
+        <StatCard label="Suspended" value={stats.suspended} hint="Users limited by admin" icon="⛔" onClick={() => navigate('/users', { state: { search: "suspended" } })} />
+        <StatCard label="Reports" value={stats.reported} hint="Review community reports" icon="🚩" onClick={() => navigate('/reports')} />
       </div>
 
       <div className="split">

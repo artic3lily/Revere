@@ -3,8 +3,11 @@ import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator } from "
 import { Feather } from "@expo/vector-icons";
 import { auth, db } from "../config/firebase";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { useTheme } from "../context/ThemeContext";
+import BottomNav from "../components/BottomNav";
 
 export default function InboxScreen({ navigation }) {
+  const { theme } = useTheme();
   const uid = auth.currentUser?.uid;
 
   const [threads, setThreads] = useState([]);
@@ -15,14 +18,21 @@ export default function InboxScreen({ navigation }) {
 
     const q = query(
       collection(db, "threads"),
-      where("members", "array-contains", uid),
-      orderBy("updatedAt", "desc")
+      where("members", "array-contains", uid)
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        
+        // Fix missing index by sorting locally
+        list.sort((a, b) => {
+          const at = a.updatedAt?.toMillis?.() ?? 0;
+          const bt = b.updatedAt?.toMillis?.() ?? 0;
+          return bt - at; // descending
+        });
+
         setThreads(list);
         setLoading(false);
       },
@@ -37,10 +47,11 @@ export default function InboxScreen({ navigation }) {
 
   const renderItem = ({ item }) => {
     const otherId = item.members?.find((m) => m !== uid);
-    const otherUsername =
-      item.memberUsernames?.[otherId] || "user";
+    const otherUsername = item.memberUsernames?.[otherId] || "user";
+    const otherAvatar = item.memberAvatars?.[otherId] || null;
 
     const unread = item.unread?.[uid] || 0;
+    const isUnread = unread > 0;
 
     return (
       <Pressable
@@ -50,15 +61,34 @@ export default function InboxScreen({ navigation }) {
             otherUsername,
           })
         }
-        style={styles.thread}
+        style={[styles.thread, { backgroundColor: theme.card, borderColor: theme.border }]}
       >
+        {/* Avatar */}
+        {otherAvatar ? (
+          <Image source={{ uri: otherAvatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.placeholder, borderColor: theme.border }]}>
+            <Feather name="user" size={18} color={theme.icon} />
+          </View>
+        )}
+
         <View style={{ flex: 1 }}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
             @{otherUsername}
           </Text>
-          <Text style={styles.preview} numberOfLines={1}>
-            {item.lastMessage || "Say hi 👋"}
-          </Text>
+          <View style={styles.previewRow}>
+            {isUnread && <View style={styles.unreadDot} />}
+            <Text 
+              style={[
+                styles.preview, 
+                { color: isUnread ? theme.text : theme.textSecondary },
+                isUnread && { fontWeight: "900", opacity: 1 }
+              ]} 
+              numberOfLines={1}
+            >
+              {item.lastMessage || "Say hi 👋"}
+            </Text>
+          </View>
         </View>
 
         {unread > 0 && (
@@ -67,18 +97,18 @@ export default function InboxScreen({ navigation }) {
           </View>
         )}
 
-        <Feather name="chevron-right" size={18} color="#111" style={{ opacity: 0.6 }} />
+        <Feather name="chevron-right" size={18} color={theme.icon} style={{ opacity: 0.6 }} />
       </Pressable>
     );
   };
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
       <View style={styles.topbar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={20} color="#111" />
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={[styles.iconBtn, { borderColor: theme.border, backgroundColor: theme.bg }]}>
+          <Feather name="arrow-left" size={20} color={theme.icon} />
         </Pressable>
-        <Text style={styles.title}>Messages</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Messages</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -92,12 +122,13 @@ export default function InboxScreen({ navigation }) {
           keyExtractor={(it) => it.id}
           renderItem={renderItem}
           ListEmptyComponent={
-            <Text style={styles.empty}>No messages yet. Tap “Message” on a profile.</Text>
+            <Text style={[styles.empty, { color: theme.textSecondary }]}>No messages yet. Tap “Message” on a profile.</Text>
           }
           contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
         />
       )}
+      <BottomNav navigation={navigation} />
     </View>
   );
 }
@@ -127,13 +158,40 @@ const styles = StyleSheet.create({
   thread: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     borderWidth: 1,
     borderColor: "#eee",
     borderRadius: 16,
     padding: 14,
     marginBottom: 10,
     backgroundColor: "#fff",
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  previewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#111",
   },
   name: { fontSize: 13, fontWeight: "900", color: "#111" },
   preview: { marginTop: 4, fontSize: 12, fontWeight: "800", color: "#111", opacity: 0.65 },

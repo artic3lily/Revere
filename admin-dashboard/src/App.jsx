@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Posts from "./pages/Posts";
+import Reports from "./pages/Reports";
 import NotAdmin from "./pages/NotAdmin";
 
 import AdminShell from "./components/AdminShell";
@@ -39,9 +40,19 @@ export default function App() {
           </AdminShell>
         }
       />
+      <Route
+        path="/reports"
+        element={
+          <AdminShell>
+            <Reports />
+          </AdminShell>
+        }
+      />
 
       <Route path="/not-admin" element={<NotAdmin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
+
+

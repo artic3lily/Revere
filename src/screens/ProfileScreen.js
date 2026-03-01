@@ -41,8 +41,8 @@ import {
   deleteObject,
 } from "firebase/storage";
 
-// ADDED (same BottomNav you use in HomeScreen)
 import BottomNav from "../components/BottomNav";
+import { useTheme } from "../context/ThemeContext";
 
 const CATEGORIES = ["Grunge", "Casual", "Elegant", "Chic", "Y2k"];
 
@@ -57,6 +57,7 @@ function formatJoined(ts) {
 }
 
 export default function ProfileScreen({ navigation }) {
+  const { theme, isDark, toggleTheme } = useTheme();
   const user = auth.currentUser;
   const uid = user?.uid;
 
@@ -498,45 +499,45 @@ export default function ProfileScreen({ navigation }) {
         };
 
   return (
-    <View style={styles.screen}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.brand} numberOfLines={1}>
+        <Text style={[styles.brand, { color: theme.text }]} numberOfLines={1}>
           Revere
         </Text>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
           Profile
         </Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Profile Card */}
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {/* Left: avatar */}
         <Pressable onPress={onChangeProfilePhoto} style={styles.avatarWrap}>
           {profile?.photoURL ? (
             <Image source={{ uri: profile.photoURL }} style={styles.avatar} />
           ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Feather name="user" size={22} color="#111" />
+            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.placeholder }]}>
+              <Feather name="user" size={22} color={theme.icon} />
             </View>
           )}
-          <View style={styles.editBadge}>
-            <Feather name="edit-2" size={12} color="#111" />
+          <View style={[styles.editBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Feather name="edit-2" size={12} color={theme.icon} />
           </View>
         </Pressable>
 
         {/* Middle */}
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{profile?.fullName ?? "Your Name"}</Text>
-          <Text style={styles.username}>@{profile?.username ?? "username"}</Text>
+          <Text style={[styles.name, { color: theme.text }]}>{profile?.fullName ?? "Your Name"}</Text>
+          <Text style={[styles.username, { color: theme.textSecondary }]}>@{profile?.username ?? "username"}</Text>
 
-          <Text style={styles.joined} numberOfLines={1}>
+          <Text style={[styles.joined, { color: theme.textSecondary }]} numberOfLines={1}>
             {joinedText}
           </Text>
 
-          <Text style={styles.about} numberOfLines={2}>
+          <Text style={[styles.about, { color: theme.textSecondary }]} numberOfLines={2}>
             {profile?.about?.trim()?.length
               ? profile.about
               : "Add a cute one-line bio ✨"}
@@ -544,52 +545,62 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Right */}
-        <Pressable onPress={openEditProfile} style={styles.editBtnRight}>
-          <Feather name="edit-3" size={14} color="#111" />
-          <Text style={styles.editBtnRightText}>Edit</Text>
+        <Pressable onPress={openEditProfile} style={[styles.editBtnRight, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <Feather name="edit-3" size={14} color={theme.icon} />
+          <Text style={[styles.editBtnRightText, { color: theme.text }]}>Edit</Text>
         </Pressable>
       </View>
 
       {/* Follow stats */}
       <View style={styles.followRow}>
-        <View style={styles.followPill}>
-          <Text style={styles.followNum}>{followingCount}</Text>
-          <Text style={styles.followLbl}>Following</Text>
-        </View>
-        <View style={styles.followPill}>
-          <Text style={styles.followNum}>{followersCount}</Text>
-          <Text style={styles.followLbl}>Followers</Text>
-        </View>
-        <View style={styles.followPill}>
-          <Text style={styles.followNum}>{posts.length}</Text>
-          <Text style={styles.followLbl}>Posts</Text>
+        <Pressable 
+          style={[styles.followPill, { borderColor: theme.border, backgroundColor: theme.card }]}
+          onPress={() => navigation.navigate("FollowList", { userId: uid, title: "Following", type: "following" })}
+        >
+          <Text style={[styles.followNum, { color: theme.text }]}>{followingCount}</Text>
+          <Text style={[styles.followLbl, { color: theme.textSecondary }]}>Following</Text>
+        </Pressable>
+
+        <Pressable 
+          style={[styles.followPill, { borderColor: theme.border, backgroundColor: theme.card }]}
+          onPress={() => navigation.navigate("FollowList", { userId: uid, title: "Followers", type: "followers" })}
+        >
+          <Text style={[styles.followNum, { color: theme.text }]}>{followersCount}</Text>
+          <Text style={[styles.followLbl, { color: theme.textSecondary }]}>Followers</Text>
+        </Pressable>
+
+        <View style={[styles.followPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <Text style={[styles.followNum, { color: theme.text }]}>{posts.length}</Text>
+          <Text style={[styles.followLbl, { color: theme.textSecondary }]}>Posts</Text>
         </View>
       </View>
 
       {/* Rating */}
       <View style={styles.ratingRow}>
-        <Text style={styles.ratingText}>Rating</Text>
+        <Pressable onPress={() => navigation.navigate("RatingList", { userId: uid, title: "Ratings" })}>
+          <Text style={[styles.ratingText, { color: theme.text }]}>Rating</Text>
+        </Pressable>
         <View style={styles.stars}>
           {[1, 2, 3, 4, 5].map((i) => (
             <Feather
               key={i}
               name="star"
               size={16}
-              color="#111"
-              style={{ opacity: i <= Math.round(ratingAvg) ? 1 : 0.25 }}
+              color={i <= Math.round(ratingAvg) ? "#fbc02d" : (isDark ? "#555" : "#ddd")}
+              style={{ opacity: i <= Math.round(ratingAvg) ? 1 : 0.5 }}
             />
           ))}
-          <Text style={styles.ratingNumber}>{ratingAvg || "0.0"}</Text>
+          <Text style={[styles.ratingNumber, { color: theme.text }]}>{ratingAvg || "0.0"}</Text>
         </View>
       </View>
 
       {/* Add Post */}
-      <Pressable style={styles.addPostBtn} onPress={openAddPost}>
-        <Feather name="plus" size={16} color="#111" />
-        <Text style={styles.addPostText}>Add Post</Text>
+      <Pressable style={[styles.addPostBtn, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={openAddPost}>
+        <Feather name="plus" size={16} color={theme.icon} />
+        <Text style={[styles.addPostText, { color: theme.text }]}>Add Post</Text>
       </Pressable>
 
-      <Text style={styles.sectionTitle}>Your Posts</Text>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Posts</Text>
 
       {/* Filters UI */}
       <View style={styles.filtersWrap}>
@@ -597,8 +608,8 @@ export default function ProfileScreen({ navigation }) {
           value={tagQuery}
           onChangeText={setTagQuery}
           placeholder="Search tags… (e.g. denim, y2k)"
-          placeholderTextColor="#444"
-          style={styles.filterInput}
+          placeholderTextColor={theme.textSecondary}
+          style={[styles.filterInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
         />
 
         <View style={styles.filterChipsRow}>
@@ -608,11 +619,12 @@ export default function ProfileScreen({ navigation }) {
               <Pressable
                 key={c}
                 onPress={() => setActiveCategoryFilter(c)}
-                style={[styles.filterChip, active && styles.filterChipActive]}
+                style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.border }, active && styles.filterChipActive]}
               >
                 <Text
                   style={[
                     styles.filterChipText,
+                    { color: theme.text },
                     active && styles.filterChipTextActive,
                   ]}
                 >
@@ -624,7 +636,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* little helper text */}
-        <Text style={styles.filterHint}>
+        <Text style={[styles.filterHint, { color: theme.textSecondary }]}>
           Showing {filteredPosts.length} / {posts.length}
         </Text>
       </View>
@@ -658,18 +670,18 @@ export default function ProfileScreen({ navigation }) {
 
  {/*post detail model*/}
       <Modal visible={detailOpen} animationType="slide">
-        <View style={styles.detailScreen}>
+        <View style={[styles.detailScreen, { backgroundColor: theme.bg }]}>
           {/* Top bar */}
-          <View style={styles.detailTopbar}>
+          <View style={[styles.detailTopbar, { borderColor: theme.border, backgroundColor: theme.bg }]}>
             <Pressable
               onPress={closePostDetail}
               hitSlop={12}
-              style={styles.backBtn}
+              style={[styles.backBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
             >
-              <Feather name="arrow-left" size={20} color="#111" />
+              <Feather name="arrow-left" size={20} color={theme.icon} />
             </Pressable>
 
-            <Text style={styles.detailTitle} numberOfLines={1}>
+            <Text style={[styles.detailTitle, { color: theme.text }]} numberOfLines={1}>
               Post
             </Text>
 
@@ -679,9 +691,9 @@ export default function ProfileScreen({ navigation }) {
                 <Pressable
                   onPress={() => onDeletePost(activePost)}
                   hitSlop={12}
-                  style={styles.trashBtn}
+                  style={[styles.trashBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
                 >
-                  <Feather name="trash-2" size={18} color="#111" />
+                  <Feather name="trash-2" size={18} color={theme.icon} />
                 </Pressable>
               ) : null}
             </View>
@@ -702,16 +714,16 @@ export default function ProfileScreen({ navigation }) {
                       style={styles.detailAvatar}
                     />
                   ) : (
-                    <View style={styles.detailAvatarPlaceholder}>
-                      <Feather name="user" size={16} color="#111" />
+                    <View style={[styles.detailAvatarPlaceholder, { backgroundColor: theme.placeholder, borderColor: theme.border }]}>
+                      <Feather name="user" size={16} color={theme.icon} />
                     </View>
                   )}
 
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.detailName} numberOfLines={1}>
+                    <Text style={[styles.detailName, { color: theme.text }]} numberOfLines={1}>
                       {detailOwner?.fullName || activePost?.ownerName || "User"}
                     </Text>
-                    <Text style={styles.detailUsername} numberOfLines={1}>
+                    <Text style={[styles.detailUsername, { color: theme.textSecondary }]} numberOfLines={1}>
                       @
                       {detailOwner?.username ||
                         activePost?.ownerUsername ||
@@ -791,15 +803,15 @@ export default function ProfileScreen({ navigation }) {
         </TouchableWithoutFeedback>
 
         <View style={styles.modalWrap}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>New Post</Text>
+          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>New Post</Text>
 
             <Pressable
-              style={styles.pickBtn}
+              style={[styles.pickBtn, { borderColor: theme.border }]}
               onPress={pickPostImage}
               disabled={uploading}
             >
-              <Text style={styles.pickBtnText}>
+              <Text style={[styles.pickBtnText, { color: theme.text }]}>
                 {newImage ? "Change Photo" : "Pick Photo"}
               </Text>
             </Pressable>
@@ -807,8 +819,8 @@ export default function ProfileScreen({ navigation }) {
             {newImage ? (
               <Image source={{ uri: newImage }} style={styles.previewImg} />
             ) : (
-              <View style={styles.previewEmpty}>
-                <Text style={{ color: "#111", opacity: 0.7, fontSize: 12 }}>
+              <View style={[styles.previewEmpty, { backgroundColor: theme.placeholder }]}>
+                <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
                   No photo selected
                 </Text>
               </View>
@@ -818,24 +830,25 @@ export default function ProfileScreen({ navigation }) {
               value={newPrice}
               onChangeText={setNewPrice}
               placeholder="Price (e.g. 1200)"
-              placeholderTextColor="#444"
+              placeholderTextColor={theme.textSecondary}
               keyboardType="numeric"
-              style={styles.captionInput}
+              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
               editable={!uploading}
             />
 
-            <Text style={styles.smallLabel}>Category</Text>
+            <Text style={[styles.smallLabel, { color: theme.text }]}>Category</Text>
             <View style={styles.chipsRow}>
               {CATEGORIES.map((c) => (
                 <Pressable
                   key={c}
                   onPress={() => setNewCategory(c)}
-                  style={[styles.chip, newCategory === c && styles.chipActive]}
+                  style={[styles.chip, { backgroundColor: theme.bg, borderColor: theme.border }, newCategory === c && styles.chipActive]}
                   disabled={uploading}
                 >
                   <Text
                     style={[
                       styles.chipText,
+                      { color: theme.textSecondary },
                       newCategory === c && styles.chipTextActive,
                     ]}
                   >
@@ -849,8 +862,8 @@ export default function ProfileScreen({ navigation }) {
               value={newTags}
               onChangeText={setNewTags}
               placeholder="Tags (comma separated) e.g. denim, y2k, black"
-              placeholderTextColor="#444"
-              style={styles.captionInput}
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
               editable={!uploading}
             />
 
@@ -858,8 +871,8 @@ export default function ProfileScreen({ navigation }) {
               value={newCaption}
               onChangeText={setNewCaption}
               placeholder="Caption…"
-              placeholderTextColor="#444"
-              style={styles.captionInput}
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
               editable={!uploading}
             />
 
@@ -886,7 +899,7 @@ export default function ProfileScreen({ navigation }) {
               </Pressable>
             </View>
 
-            <Text style={styles.hint}>
+            <Text style={[styles.hint, { color: theme.textSecondary }]}>
               Tip: tap a post to open • long-press to delete
             </Text>
           </View>
@@ -900,23 +913,23 @@ export default function ProfileScreen({ navigation }) {
         </TouchableWithoutFeedback>
 
         <View style={styles.modalWrap}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
+          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Profile</Text>
 
             <TextInput
               value={editFullName}
               onChangeText={setEditFullName}
               placeholder="Your real name"
-              placeholderTextColor="#444"
-              style={styles.captionInput}
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
               editable={!uploading}
             />
             <TextInput
               value={editAbout}
               onChangeText={setEditAbout}
               placeholder="Bio / about you ✨"
-              placeholderTextColor="#444"
-              style={styles.captionInput}
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
               editable={!uploading}
             />
 
@@ -1048,8 +1061,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee",
     borderRadius: 16,
-    paddingVertical: 10,
+    paddingVertical: 14,
+    minHeight: 64,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#fff",
   },
   followNum: { fontSize: 14, fontWeight: "900", color: "#111" },

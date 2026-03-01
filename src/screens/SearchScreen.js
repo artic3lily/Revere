@@ -13,6 +13,8 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth, db } from "../config/firebase";
 import {
   collection,
@@ -32,6 +34,7 @@ function normalizeTerm(s) {
 }
 
 export default function SearchScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const uid = auth.currentUser?.uid;
 
   const [tab, setTab] = useState("people"); // people, posts
@@ -46,6 +49,10 @@ export default function SearchScreen({ navigation }) {
   const [people, setPeople] = useState([]);
   const [posts, setPosts] = useState([]);
 
+  // recent searches
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [showRecentModal, setShowRecentModal] = useState(false);
+
   // Post detail modal
   const [detailOpen, setDetailOpen] = useState(false);
   const [activePost, setActivePost] = useState(null);
@@ -54,6 +61,47 @@ export default function SearchScreen({ navigation }) {
   const { width } = Dimensions.get("window");
   const gridGap = 8;
   const tileSize = Math.floor((width - 16 * 2 - gridGap * 2) / 3);
+
+  useEffect(() => {
+    loadRecentSearches();
+  }, []);
+
+  const loadRecentSearches = async () => {
+    try {
+      const stored = await AsyncStorage.getItem("recentSearches");
+      if (stored) {
+        setRecentSearches(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.log("Failed to load recents:", e);
+    }
+  };
+
+  const saveRecentSearch = async (user) => {
+    try {
+      const current = [...recentSearches];
+      // remove duplicate if exists
+      const filtered = current.filter((u) => u.id !== user.id);
+      // add to top
+      filtered.unshift(user);
+      // keep max 20
+      const limited = filtered.slice(0, 20);
+      setRecentSearches(limited);
+      await AsyncStorage.setItem("recentSearches", JSON.stringify(limited));
+    } catch (e) {
+      console.log("Failed to save recent:", e);
+    }
+  };
+
+  const clearRecentSearches = async () => {
+    try {
+      setRecentSearches([]);
+      await AsyncStorage.removeItem("recentSearches");
+      setShowRecentModal(false);
+    } catch (e) {
+      console.log("Failed to clear recents:", e);
+    }
+  };
 
   // search people
   const searchPeople = async () => {
@@ -210,6 +258,7 @@ export default function SearchScreen({ navigation }) {
   }, [term, tab, category, tag]);
 
   const openUser = (u) => {
+    saveRecentSearch(u);
     navigation.navigate("UserProfile", { userId: u.id });
   };
 
@@ -235,30 +284,30 @@ export default function SearchScreen({ navigation }) {
   };
 
   const renderPerson = ({ item }) => (
-    <Pressable onPress={() => openUser(item)} style={styles.personRow}>
+    <Pressable onPress={() => openUser(item)} style={[styles.personRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
       {item.photoURL ? (
         <Image source={{ uri: item.photoURL }} style={styles.personAvatar} />
       ) : (
-        <View style={styles.personAvatarPh}>
-          <Feather name="user" size={16} color="#111" />
+        <View style={[styles.personAvatarPh, { backgroundColor: theme.placeholder, borderColor: theme.border }]}>
+          <Feather name="user" size={16} color={theme.icon} />
         </View>
       )}
       <View style={{ flex: 1 }}>
-        <Text style={styles.personName} numberOfLines={1}>
+        <Text style={[styles.personName, { color: theme.text }]} numberOfLines={1}>
           {item.fullName || "User"}
         </Text>
-        <Text style={styles.personUsername} numberOfLines={1}>
+        <Text style={[styles.personUsername, { color: theme.textSecondary }]} numberOfLines={1}>
           @{item.username || "username"}
         </Text>
       </View>
-      <Feather name="chevron-right" size={18} color="#111" style={{ opacity: 0.5 }} />
+      <Feather name="chevron-right" size={18} color={theme.icon} style={{ opacity: 0.5 }} />
     </Pressable>
   );
 
   const renderTile = ({ item }) => (
     <Pressable
       onPress={() => openPost(item)}
-      style={[styles.tile, { width: tileSize, height: tileSize }]}
+      style={[styles.tile, { width: tileSize, height: tileSize, borderColor: theme.border, backgroundColor: theme.placeholder }]}
     >
       <Image source={{ uri: item.imageUrl }} style={styles.tileImg} />
       {typeof item.price === "number" && (
@@ -276,29 +325,29 @@ export default function SearchScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
       {/* Top bar */}
       <View style={styles.topbar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={20} color="#111" />
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={[styles.iconBtn, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <Feather name="arrow-left" size={20} color={theme.icon} />
         </Pressable>
-        <Text style={styles.title}>Search</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Search</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Search input */}
-      <View style={styles.searchBox}>
-        <Feather name="search" size={16} color="#111" style={{ opacity: 0.6 }} />
+      <View style={[styles.searchBox, { borderColor: theme.border, backgroundColor: theme.card }]}>
+        <Feather name="search" size={16} color={theme.icon} style={{ opacity: 0.6 }} />
         <TextInput
           value={term}
           onChangeText={setTerm}
           placeholder={tab === "people" ? "Search username or name..." : "Search posts (caption/user)..."}
-          placeholderTextColor="#444"
-          style={styles.searchInput}
+          placeholderTextColor={theme.textSecondary}
+          style={[styles.searchInput, { color: theme.text }]}
         />
         {!!term && (
           <Pressable onPress={() => setTerm("")} hitSlop={10}>
-            <Feather name="x" size={18} color="#111" style={{ opacity: 0.6 }} />
+            <Feather name="x" size={18} color={theme.icon} style={{ opacity: 0.6 }} />
           </Pressable>
         )}
       </View>
@@ -307,17 +356,17 @@ export default function SearchScreen({ navigation }) {
       <View style={styles.tabsRow}>
         <Pressable
           onPress={() => setTab("people")}
-          style={[styles.tab, tab === "people" && styles.tabActive]}
+          style={[styles.tab, { borderColor: theme.border, backgroundColor: theme.card }, tab === "people" && { borderColor: theme.text }]}
         >
-          <Text style={[styles.tabText, tab === "people" && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: theme.text }, tab === "people" && styles.tabTextActive]}>
             People
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setTab("posts")}
-          style={[styles.tab, tab === "posts" && styles.tabActive]}
+          style={[styles.tab, { borderColor: theme.border, backgroundColor: theme.card }, tab === "posts" && { borderColor: theme.text }]}
         >
-          <Text style={[styles.tabText, tab === "posts" && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: theme.text }, tab === "posts" && styles.tabTextActive]}>
             Posts
           </Text>
         </Pressable>
@@ -325,36 +374,36 @@ export default function SearchScreen({ navigation }) {
 
       {/* Filters for posts */}
       {tab === "posts" && (
-        <View style={styles.filtersCard}>
-          <Text style={styles.filterTitle}>Filters</Text>
+        <View style={[styles.filtersCard, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <Text style={[styles.filterTitle, { color: theme.text }]}>Filters</Text>
 
-          <Text style={styles.smallLabel}>Category</Text>
+          <Text style={[styles.smallLabel, { color: theme.text }]}>Category</Text>
           <View style={styles.chipsRow}>
             {CATEGORIES.map((c) => (
               <Pressable
                 key={c}
                 onPress={() => setCategory(c)}
-                style={[styles.chip, category === c && styles.chipActive]}
+                style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.card }, category === c && { borderColor: theme.text }]}
               >
-                <Text style={[styles.chipText, category === c && styles.chipTextActive]}>
+                <Text style={[styles.chipText, { color: theme.text }, category === c && styles.chipTextActive]}>
                   {c}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <Text style={styles.smallLabel}>Tag</Text>
-          <View style={styles.tagInputRow}>
+          <Text style={[styles.smallLabel, { color: theme.text }]}>Tag</Text>
+          <View style={[styles.tagInputRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
             <TextInput
               value={tag}
               onChangeText={setTag}
               placeholder="e.g. denim, y2k, black"
-              placeholderTextColor="#444"
-              style={styles.tagInput}
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.tagInput, { color: theme.text }]}
             />
             {!!tag && (
               <Pressable onPress={() => setTag("")} hitSlop={10} style={styles.tagClear}>
-                <Feather name="x" size={16} color="#111" />
+                <Feather name="x" size={16} color={theme.icon} />
               </Pressable>
             )}
           </View>
@@ -367,17 +416,37 @@ export default function SearchScreen({ navigation }) {
           <ActivityIndicator />
         </View>
       ) : tab === "people" ? (
-        <FlatList
-          data={people}
-          keyExtractor={(it) => it.id}
-          renderItem={renderPerson}
-          contentContainerStyle={{ paddingBottom: 24 }}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              {term.trim() ? "No people found." : "Type a name or username to search."}
-            </Text>
-          }
-        />
+        <>
+          {!term.trim() && recentSearches.length > 0 ? (
+            <View style={styles.recentContainer}>
+              <View style={styles.recentHeader}>
+                <Text style={[styles.recentTitle, { color: theme.text }]}>Recent Searches</Text>
+                <Pressable onPress={() => setShowRecentModal(true)} hitSlop={10}>
+                  <Text style={[styles.seeAllText, { color: isDark ? "#64b5f6" : "#4A90E2" }]}>See all</Text>
+                </Pressable>
+              </View>
+              <FlatList
+                data={recentSearches.slice(0, 5)}
+                keyExtractor={(it) => "recent_" + it.id}
+                renderItem={renderPerson}
+                contentContainerStyle={{ paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+              />
+            </View>
+          ) : (
+            <FlatList
+              data={people}
+              keyExtractor={(it) => it.id}
+              renderItem={renderPerson}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              ListEmptyComponent={
+                <Text style={[styles.empty, { color: theme.text }]}>
+                  {term.trim() ? "No people found." : "Type a name or username to search."}
+                </Text>
+              }
+            />
+          )}
+        </>
       ) : (
         <FlatList
           key={`posts-3`}
@@ -389,7 +458,7 @@ export default function SearchScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: 24, gap: 8 }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <Text style={styles.empty}>
+            <Text style={[styles.empty, { color: theme.text }]}>
               {(term.trim() || tag.trim() || category !== "All")
                 ? "No posts match your search."
                 : "Search posts by category or tags ✨"}
@@ -400,12 +469,12 @@ export default function SearchScreen({ navigation }) {
 
       {/* Post detail modal */}
       <Modal visible={detailOpen} animationType="slide">
-        <View style={styles.detailScreen}>
-          <View style={styles.detailTopbar}>
-            <Pressable onPress={closeDetail} hitSlop={12} style={styles.iconBtn}>
-              <Feather name="arrow-left" size={20} color="#111" />
+        <View style={[styles.detailScreen, { backgroundColor: theme.bg }]}>
+          <View style={[styles.detailTopbar, { borderColor: theme.border }]}>
+            <Pressable onPress={closeDetail} hitSlop={12} style={[styles.iconBtn, { borderColor: theme.border, backgroundColor: theme.card }]}>
+              <Feather name="arrow-left" size={20} color={theme.icon} />
             </Pressable>
-            <Text style={styles.detailTitle}>Item</Text>
+            <Text style={[styles.detailTitle, { color: theme.text }]}>Item</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -426,53 +495,53 @@ export default function SearchScreen({ navigation }) {
                   {detailOwner?.photoURL ? (
                     <Image source={{ uri: detailOwner.photoURL }} style={styles.detailAvatar} />
                   ) : (
-                    <View style={styles.detailAvatarPh}>
-                      <Feather name="user" size={16} color="#111" />
+                    <View style={[styles.detailAvatarPh, { borderColor: theme.border, backgroundColor: theme.placeholder }]}>
+                      <Feather name="user" size={16} color={theme.icon} />
                     </View>
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.detailName} numberOfLines={1}>
+                    <Text style={[styles.detailName, { color: theme.text }]} numberOfLines={1}>
                       {detailOwner?.fullName || "User"}
                     </Text>
-                    <Text style={styles.detailUsername} numberOfLines={1}>
+                    <Text style={[styles.detailUsername, { color: theme.textSecondary }]} numberOfLines={1}>
                       @{detailOwner?.username || "username"}
                     </Text>
                   </View>
-                  <Feather name="chevron-right" size={18} color="#111" style={{ opacity: 0.4 }} />
+                  <Feather name="chevron-right" size={18} color={theme.icon} style={{ opacity: 0.4 }} />
                 </Pressable>
 
-                <View style={styles.detailImgWrap}>
+                <View style={[styles.detailImgWrap, { borderColor: theme.border, backgroundColor: theme.placeholder }]}>
                   <Image source={{ uri: activePost?.imageUrl }} style={styles.detailImg} />
                 </View>
 
                 <View style={styles.detailMeta}>
                   <View style={styles.detailPillsRow}>
                     {typeof activePost?.price === "number" && (
-                      <View style={styles.pillDark}>
-                        <Text style={styles.pillDarkText}>Rs. {activePost.price}</Text>
+                      <View style={[styles.pillDark, { backgroundColor: theme.text }]}>
+                        <Text style={[styles.pillDarkText, { color: theme.bg }]}>Rs. {activePost.price}</Text>
                       </View>
                     )}
                     {!!activePost?.category && (
-                      <View style={styles.pill}>
-                        <Text style={styles.pillText}>{activePost.category}</Text>
+                      <View style={[styles.pill, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                        <Text style={[styles.pillText, { color: theme.text }]}>{activePost.category}</Text>
                       </View>
                     )}
                   </View>
 
-                  <Text style={styles.detailCaption}>
+                  <Text style={[styles.detailCaption, { color: theme.text }]}>
                     {activePost?.caption?.trim()?.length ? activePost.caption : "No caption"}
                   </Text>
 
                   {Array.isArray(activePost?.tags) && activePost.tags.length > 0 ? (
                     <View style={styles.tagsRow}>
                       {activePost.tags.slice(0, 12).map((t) => (
-                        <View key={t} style={styles.tagChip}>
-                          <Text style={styles.tagChipText}>#{t}</Text>
+                        <View key={t} style={[styles.tagChip, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                          <Text style={[styles.tagChipText, { color: theme.text }]}>#{t}</Text>
                         </View>
                       ))}
                     </View>
                   ) : (
-                    <Text style={styles.tagsEmpty}>No tags</Text>
+                    <Text style={[styles.tagsEmpty, { color: theme.textSecondary }]}>No tags</Text>
                   )}
                 </View>
               </View>
@@ -482,12 +551,39 @@ export default function SearchScreen({ navigation }) {
           />
         </View>
       </Modal>
+
+      {/* Recent Searches Modal */}
+      <Modal visible={showRecentModal} animationType="slide">
+        <View style={[styles.detailScreen, { backgroundColor: theme.bg }]}>
+          <View style={[styles.detailTopbar, { borderColor: theme.border }]}>
+            <Pressable onPress={() => setShowRecentModal(false)} hitSlop={12} style={[styles.iconBtn, { borderColor: theme.border, backgroundColor: theme.card }]}>
+              <Feather name="arrow-left" size={20} color={theme.icon} />
+            </Pressable>
+            <Text style={[styles.detailTitle, { color: theme.text }]}>Search History</Text>
+            <Pressable onPress={clearRecentSearches} hitSlop={10} style={[styles.clearBtn, { backgroundColor: isDark ? "#4a1212" : "#FFECEC" }]}>
+              <Text style={[styles.clearBtnText, { color: isDark ? "#ff6b6b" : "#E02424" }]}>Clear all</Text>
+            </Pressable>
+          </View>
+          
+          <FlatList
+            data={recentSearches}
+            keyExtractor={(it) => "historic_" + it.id}
+            renderItem={renderPerson}
+            contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: 16 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <Text style={[styles.empty, { color: theme.text }]}>No recent searches.</Text>
+            }
+          />
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 16, paddingTop: 44 },
+  screen: { flex: 1, paddingHorizontal: 16, paddingTop: 44 },
 
   topbar: {
     flexDirection: "row",
@@ -500,10 +596,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#eee",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
   },
   title: { fontSize: 16, fontWeight: "900", color: "#111" },
 
@@ -516,7 +610,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: "#fff",
   },
   searchInput: { flex: 1, fontSize: 13, fontWeight: "800", color: "#111" },
 
@@ -528,19 +621,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#fff",
   },
   tabActive: { borderColor: "#111" },
   tabText: { fontSize: 13, fontWeight: "900", color: "#111", opacity: 0.65 },
   tabTextActive: { opacity: 1 },
 
   filtersCard: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
     borderRadius: 18,
     padding: 12,
-    backgroundColor: "#fff",
   },
   filterTitle: { fontSize: 13, fontWeight: "900", color: "#111" },
   smallLabel: { marginTop: 10, fontSize: 12, fontWeight: "900", color: "#111", opacity: 0.8 },
@@ -551,8 +639,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fff",
   },
   chipActive: { borderColor: "#111" },
   chipText: { fontSize: 12, fontWeight: "900", color: "#111", opacity: 0.75 },
@@ -566,21 +652,11 @@ const styles = StyleSheet.create({
     borderColor: "#eee",
     borderRadius: 14,
     paddingHorizontal: 12,
-    backgroundColor: "#fff",
   },
   tagInput: { flex: 1, paddingVertical: 10, fontSize: 12, fontWeight: "800", color: "#111" },
   tagClear: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
-
   personRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderRadius: 18,
     padding: 12,
-    backgroundColor: "#fff",
   },
   personAvatar: { width: 42, height: 42, borderRadius: 16 },
   personAvatarPh: {
@@ -597,6 +673,20 @@ const styles = StyleSheet.create({
   personUsername: { marginTop: 2, fontSize: 12, fontWeight: "800", color: "#111", opacity: 0.6 },
 
   empty: { marginTop: 18, textAlign: "center", color: "#111", opacity: 0.55, fontWeight: "800" },
+
+  recentContainer: { flex: 1, marginTop: 16 },
+  recentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  recentTitle: { fontSize: 13, fontWeight: "900", color: "#111" },
+  seeAllText: { fontSize: 12, fontWeight: "900", color: "#4A90E2" },
+  
+  clearBtn: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "#FFECEC", 
+    justifyContent: "center",
+  },
+  clearBtnText: { color: "#E02424", fontSize: 12, fontWeight: "900" },
 
   // grid
   tile: {
@@ -620,7 +710,7 @@ const styles = StyleSheet.create({
   priceBadgeText: { color: "#fff", fontSize: 11, fontWeight: "900" },
 
   // detail modal
-  detailScreen: { flex: 1, backgroundColor: "#fff" },
+  detailScreen: { flex: 1 },
   detailTopbar: {
     paddingTop: 50,
     paddingHorizontal: 16,
@@ -665,8 +755,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fff",
   },
   pillText: { fontSize: 12, fontWeight: "900", color: "#111", opacity: 0.75 },
   pillDark: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "#111" },
@@ -677,8 +765,6 @@ const styles = StyleSheet.create({
   tagsRow: { marginTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tagChip: {
     borderWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fff",
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,

@@ -88,7 +88,7 @@ export default function BottomNav({ navigation }) {
         <Pressable hitSlop={10} onPress={() => navigation.navigate("Cart")}>
           <Image style={[styles.icon, { tintColor: theme.icon }]} source={cartImg} />
           {cartCount > 0 && (
-            <View style={[styles.badge, { backgroundColor: theme.badge }]} pointerEvents="none">
+            <View style={[styles.badge, { backgroundColor: theme.badge }]}>
               <Text style={styles.badgeText}>{cartCount > 99 ? "99+" : String(cartCount)}</Text>
             </View>
           )}
@@ -98,7 +98,7 @@ export default function BottomNav({ navigation }) {
         <Pressable hitSlop={10} onPress={() => navigation.navigate("Wishlist")}>
           <Image style={[styles.icon, { tintColor: theme.icon }]} source={heartImg} />
           {wishlistCount > 0 && (
-            <View style={[styles.badge, { backgroundColor: theme.badge }]} pointerEvents="none">
+            <View style={[styles.badge, { backgroundColor: theme.badge }]}>
               <Text style={styles.badgeText}>
                 {wishlistCount > 99 ? "99+" : String(wishlistCount)}
               </Text>
@@ -110,7 +110,7 @@ export default function BottomNav({ navigation }) {
         <Pressable hitSlop={10} onPress={() => navigation.navigate("Inbox")}>
           <Image style={[styles.icon, { tintColor: theme.icon }]} source={messageImg} />
           {unreadChats > 0 && (
-            <View style={[styles.badge, { backgroundColor: theme.badge }]} pointerEvents="none">
+            <View style={[styles.badge, { backgroundColor: theme.badge }]}>
               <Text style={styles.badgeText}>
                 {unreadChats > 99 ? "99+" : String(unreadChats)}
               </Text>

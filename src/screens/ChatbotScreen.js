@@ -12,6 +12,7 @@ import {
   Pressable,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getApp } from "firebase/app";
@@ -23,6 +24,7 @@ const functions = getFunctions(getApp());
 const fashionChat = httpsCallable(functions, "fashionChat");
 
 export default function ChatbotScreen({ navigation }) {
+  const { theme, isDark } = useTheme();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -106,24 +108,27 @@ export default function ChatbotScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "android" ? "padding" : "padding"}
         keyboardVerticalOffset={Platform.OS === "android" ? 0 : 80}
       >
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.bg }]}>
           {/* Header arrow */}
-          <View style={styles.topBar}>
+          <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
             <Pressable
               hitSlop={12}
-              style={styles.backBtn}
+              style={[styles.backBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
               onPress={() => navigation.goBack()}
             >
-              <Feather name="arrow-left" size={22} color="#111" />
+              <Feather name="arrow-left" size={22} color={theme.icon} />
             </Pressable>
 
-            <Text style={styles.title}>Miss Ray</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Feather name="smile" size={18} color={theme.text} />
+                <Text style={[styles.title, { color: theme.text }]}>Miss Ray</Text>
+            </View>
 
             {/* spacer to keep title centered */}
             <View style={{ width: 40 }} />
@@ -144,28 +149,29 @@ export default function ChatbotScreen({ navigation }) {
                 <View
                   style={[
                     styles.bubble,
-                    isUser ? styles.user : styles.bot,
+                    isUser ? [styles.user, { backgroundColor: isDark ? "#4B3275" : "#E8D8FF" }] : [styles.bot, { backgroundColor: theme.card }],
                     isTyping && styles.typingBubble,
                   ]}
                 >
-                  <Text style={styles.msgText}>{item.content}</Text>
+                  <Text style={[styles.msgText, isUser ? { color: isDark ? "#fff" : "#111" } : { color: theme.text }]}>{item.content}</Text>
                 </View>
               );
             }}
           />
 
           {/* Input bar */}
-          <View style={styles.inputRow}>
+          <View style={[styles.inputRow, { backgroundColor: theme.bg }]}>
             <TextInput
               value={input}
               onChangeText={setInput}
               placeholder="Ask about outfits, styling..."
-              style={styles.input}
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.card }]}
               onSubmitEditing={sendMessage}
               returnKeyType="send"
             />
-            <TouchableOpacity onPress={sendMessage} style={styles.send}>
-              <Text style={styles.sendText}>{loading ? "..." : "Send"}</Text>
+            <TouchableOpacity onPress={sendMessage} style={[styles.send, { backgroundColor: theme.buttonBg }]}>
+              <Text style={[styles.sendText, { color: theme.buttonText }]}>{loading ? "..." : "Send"}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -175,7 +181,7 @@ export default function ChatbotScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 12, backgroundColor: "#fff" },
+  container: { flex: 1, padding: 12 },
 
   // Header
   topBar: {
@@ -192,10 +198,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#eee",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
   },
   title: { fontSize: 14, fontWeight: "900", color: "#111" },
 

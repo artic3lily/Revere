@@ -14,6 +14,8 @@ import UserProfileScreen from "../screens/UserProfileScreen";
 import PostDetailScreen from "../screens/PostDetailScreen";
 import WishlistScreen from "../screens/WishlistScreen";
 import CartScreen from "../screens/CartScreen";
+import FollowListScreen from "../screens/FollowListScreen";
+import RatingListScreen from "../screens/RatingListScreen";
 import UserChatScreen from "../screens/UserChatScreen";
 import ChatbotScreen from "../screens/ChatbotScreen";
 import InboxScreen from "../screens/InboxScreen";
@@ -95,6 +97,8 @@ export default function AppNavigator() {
             <Stack.Screen name="UserProfile" component={UserProfileScreen} />
             <Stack.Screen name="UserChat" component={UserChatScreen} />
             <Stack.Screen name="Inbox" component={InboxScreen} />
+            <Stack.Screen name="FollowList" component={FollowListScreen} />
+            <Stack.Screen name="RatingList" component={RatingListScreen} />
           </>
         ) : (
           <>
