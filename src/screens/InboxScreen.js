@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { auth, db } from "../config/firebase";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where, doc, deleteDoc } from "firebase/firestore";
 import { useTheme } from "../context/ThemeContext";
 import BottomNav from "../components/BottomNav";
 import { registerListener } from "../services/listenerRegistry";
@@ -43,6 +43,29 @@ export default function InboxScreen({ navigation }) {
     return () => unsub();
   }, [uid]);
 
+  const handleDeleteThread = (threadId, otherUsername) => {
+    Alert.alert(
+      "Delete Chat",
+      `Are you sure you want to delete your conversation with @${otherUsername}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+             try {
+               await deleteDoc(doc(db, "threads", threadId));
+             } catch (e) {
+               console.log("Delete thread error", e);
+               Alert.alert("Error", "Could not delete chat at this time.");
+             }
+          }
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+
   const renderItem = ({ item }) => {
     const otherId = item.members?.find((m) => m !== uid);
     const otherUsername = item.memberUsernames?.[otherId] || "user";
@@ -53,6 +76,7 @@ export default function InboxScreen({ navigation }) {
 
     return (
       <Pressable
+        onLongPress={() => handleDeleteThread(item.id, otherUsername)}
         onPress={() =>
           navigation.navigate("UserChat", {
             otherUserId: otherId,

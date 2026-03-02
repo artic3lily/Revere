@@ -23,6 +23,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { db } from "../config/firebase";
 import TryOnScreen from "../screens/TryOnScreen";
+import CheckoutScreen from "../screens/CheckoutScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
+import OrderDetailsScreen from "../screens/OrderDetailsScreen";
 
 
 const Stack = createNativeStackNavigator();
@@ -100,6 +103,9 @@ export default function AppNavigator() {
             <Stack.Screen name="FollowList" component={FollowListScreen} />
             <Stack.Screen name="RatingList" component={RatingListScreen} />
             <Stack.Screen name="TryOn" component={TryOnScreen} />
+            <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
           </>
         ) : (
           <>

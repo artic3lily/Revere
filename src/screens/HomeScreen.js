@@ -25,6 +25,7 @@ import {
   deleteDoc,
   serverTimestamp,
   getDocs,
+  where
 } from "firebase/firestore";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
@@ -88,6 +89,18 @@ export default function HomeScreen({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [wishlist, setWishlist] = useState(new Set());
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!auth.currentUser?.uid) return;
+    const unsub = onSnapshot(query(collection(db, "notifications"), 
+                  where("targetUserId", "==", auth.currentUser.uid), 
+                  where("read", "==", false)), (snap) => {
+      setUnreadCount(snap.docs.length);
+    });
+    registerListener(unsub);
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (!auth.currentUser?.uid) return;
@@ -162,15 +175,24 @@ export default function HomeScreen({ navigation }) {
             𝓡𝓮𝓿𝓮𝓻𝓮
           </Text>
 
-          {/* Search + Chatbot */}
+          {/* Search + Notifications + Chatbot */}
           <View style={styles.headerRight}>
             <Pressable hitSlop={10} onPress={() => navigation.navigate("Search")}>
               <Image style={[styles.icon, { tintColor: theme.icon }]} source={searchImg} />
             </Pressable>
 
+            <Pressable hitSlop={10} style={{ marginLeft: 16 }} onPress={() => navigation.navigate("Notifications")}>
+              <Feather name="bell" size={24} color={theme.icon} />
+              {unreadCount > 0 && (
+                <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: 'red', borderRadius: 10, width: 14, height: 14, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: 'white', fontSize: 9, fontWeight: 'bold' }}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
+            </Pressable>
+
             <Pressable
               hitSlop={10}
-              style={{ marginLeft: 12 }}
+              style={{ marginLeft: 16 }}
               onPress={() => navigation.navigate("Chatbot")}
             >
               <Image source={kittyImg} style={{ width: 28, height: 28, resizeMode: "contain" }} />

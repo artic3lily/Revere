@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { auth, db } from '../config/firebase';
 import { collection, onSnapshot, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ export default function CartScreen({ navigation }) {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
     let unsub = null;
@@ -42,14 +43,33 @@ export default function CartScreen({ navigation }) {
     return () => unsub && unsub();
   }, []);
 
-  const remove = async (postId) => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    try {
-      await deleteDoc(doc(db, 'users', uid, 'cart', postId));
-    } catch (e) {
-      console.log('Cart remove error', e);
-    }
+  // Sync selectedIds (in case an item gets removed while selected)
+  useEffect(() => {
+    setSelectedIds(prev => prev.filter(id => items.some(i => i.id === id)));
+  }, [items]);
+
+  const remove = (postId) => {
+    Alert.alert(
+      "Remove Item",
+      "Are you sure you want to delete this item from your cart?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Yes, Delete", 
+          style: "destructive",
+          onPress: async () => {
+            const uid = auth.currentUser?.uid;
+            if (!uid) return;
+            try {
+              await deleteDoc(doc(db, 'users', uid, 'cart', postId));
+            } catch (e) {
+              console.log('Cart remove error', e);
+            }
+          }
+        }
+      ],
+      { cancelable: true }
+    );
   };
 
   const Header = () => (
@@ -78,7 +98,21 @@ export default function CartScreen({ navigation }) {
     </View>
   );
 
-  const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
+  const selectedItems = items.filter(i => selectedIds.includes(i.id));
+  const currentSellerId = selectedItems.length > 0 ? selectedItems[0].ownerId : null;
+  const total = selectedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+
+  const toggleSelect = (item) => {
+    if (selectedIds.includes(item.id)) {
+      setSelectedIds(prev => prev.filter(id => id !== item.id));
+    } else {
+      if (currentSellerId && currentSellerId !== item.ownerId) {
+        // Can optionally alert here, but the UI is disabled
+        return;
+      }
+      setSelectedIds(prev => [...prev, item.id]);
+    }
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.bg }]}>
@@ -87,27 +121,54 @@ export default function CartScreen({ navigation }) {
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 180 }}
         ListHeaderComponent={Header}
-        renderItem={({ item }) => (
-          <Pressable style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => navigation.navigate('PostDetail', { postId: item.id })}>
-            <Image source={{ uri: item.tryOnWhiteUrl || item.imageUrl }} style={styles.thumb} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>{item.caption}</Text>
-              <Text style={[styles.price, { color: theme.textSecondary }]}>Rs. {item.price}</Text>
+        renderItem={({ item }) => {
+          const isSelected = selectedIds.includes(item.id);
+          const isDisabled = currentSellerId != null && currentSellerId !== item.ownerId;
+          const opacityStyle = isDisabled ? { opacity: 0.4 } : { opacity: 1 };
+          
+          return (
+            <View style={[styles.row, opacityStyle, { backgroundColor: theme.card, borderColor: isSelected ? theme.primary || '#111' : theme.border }]}>
+              <Pressable
+                style={{ padding: 4, marginRight: 8 }}
+                onPress={() => toggleSelect(item)}
+                disabled={isDisabled}
+              >
+                <Feather name={isSelected ? "check-circle" : "circle"} size={22} color={isSelected ? (theme.primary || '#111') : theme.textSecondary} />
+              </Pressable>
+
+              <Pressable style={styles.contentWrap} onPress={() => navigation.navigate('PostDetail', { postId: item.id })}>
+                <Image source={{ uri: item.tryOnWhiteUrl || item.imageUrl }} style={styles.thumb} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>{item.caption}</Text>
+                  <Text style={[styles.price, { color: theme.textSecondary }]}>Rs. {item.price}</Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 10, marginTop: 4, fontWeight: '700' }}>Seller: @{item.ownerUsername}</Text>
+                </View>
+              </Pressable>
+
+              <Pressable style={styles.removeBtn} onPress={() => remove(item.id)}>
+                <Feather name="trash" size={18} color={theme.text} />
+              </Pressable>
             </View>
-            <Pressable style={styles.removeBtn} onPress={() => remove(item.id)}>
-              <Feather name="trash" size={18} color={theme.text} />
-            </Pressable>
-          </Pressable>
-        )}
+          );
+        }}
         ListFooterComponent={
           items.length > 0 ? (
             <View style={styles.footer}>
+              {currentSellerId != null && (
+                <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>
+                  Select items from the same seller to checkout.
+                </Text>
+              )}
               <View style={[styles.totalRow, { borderTopColor: theme.border }]}>
-                <Text style={[styles.totalLabel, { color: theme.text }]}>Total:</Text>
+                <Text style={[styles.totalLabel, { color: theme.text }]}>Selected Total:</Text>
                 <Text style={[styles.totalPrice, { color: theme.text }]}>Rs. {total}</Text>
               </View>
-              <Pressable style={[styles.checkoutBtn, { backgroundColor: theme.buttonBg }]}>
-                <Text style={[styles.checkoutText, { color: theme.buttonText }]}>Proceed to Checkout</Text>
+              <Pressable 
+                style={[styles.checkoutBtn, { backgroundColor: selectedItems.length > 0 ? theme.buttonBg : theme.buttonDisabled || '#ccc' }]}
+                disabled={selectedItems.length === 0}
+                onPress={() => navigation.navigate('Checkout', { items: selectedItems, total })}
+              >
+                <Text style={[styles.checkoutText, { color: selectedItems.length > 0 ? theme.buttonText : '#666' }]}>Proceed to Checkout ({selectedItems.length})</Text>
               </Pressable>
             </View>
           ) : null
@@ -137,7 +198,8 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 14, fontWeight: '900', color: '#111' },
   headerTitle: { fontSize: 14, fontWeight: '900', color: '#111' },
-  row: { flexDirection:'row', alignItems:'center', marginBottom:12, borderWidth:1, borderColor:'#eee', borderRadius:12, padding:10, backgroundColor:'#fff' },
+  row: { flexDirection:'row', alignItems:'center', marginBottom:12, borderWidth:2, borderRadius:12, padding:10, backgroundColor:'#fff' },
+  contentWrap: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   thumb: { width: 96, height: 96, borderRadius: 10, backgroundColor:'#f2f2f2' },
   title: { fontSize:13, fontWeight:'800', color:'#111' },
   price: { marginTop:6, fontSize:12, fontWeight:'700', color:'#444' },

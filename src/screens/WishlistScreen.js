@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { auth, db } from '../config/firebase';
 import BottomNav from '../components/BottomNav';
 import { collection, onSnapshot, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
@@ -42,14 +42,28 @@ export default function WishlistScreen({ navigation }) {
     return () => unsub && unsub();
   }, []);
 
-  const remove = async (postId) => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    try {
-      await deleteDoc(doc(db, 'users', uid, 'wishlist', postId));
-    } catch (e) {
-      console.log('Wishlist remove error', e);
-    }
+  const remove = (postId) => {
+    Alert.alert(
+      "Remove Item",
+      "Are you sure you want to delete this item from your wishlist?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Yes, Delete", 
+          style: "destructive",
+          onPress: async () => {
+            const uid = auth.currentUser?.uid;
+            if (!uid) return;
+            try {
+              await deleteDoc(doc(db, 'users', uid, 'wishlist', postId));
+            } catch (e) {
+              console.log('Wishlist remove error', e);
+            }
+          }
+        }
+      ],
+      { cancelable: true }
+    );
   };
 
   if (loading) return (<View style={[styles.loading, { backgroundColor: theme.bg }]}><ActivityIndicator /></View>);

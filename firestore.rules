@@ -130,11 +130,15 @@ service cloud.firestore {
       allow update: if okUser()
         && request.auth.uid in resource.data.members;
 
+      allow delete: if okUser()
+        && request.auth.uid in resource.data.members;
+
       match /messages/{messageId} {
         allow read, create: if okUser()
           && request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.members;
 
-        allow update, delete: if false;
+        allow delete: if okUser() && request.auth.uid == resource.data.senderId;
+        allow update: if false;
       }
     }
 
@@ -143,6 +147,19 @@ service cloud.firestore {
       allow create: if okUser() && request.auth.uid == request.resource.data.reporterId;
       allow read, update: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // ORDERS //
+    match /orders/{orderId} {
+      allow create: if okUser() && request.auth.uid == request.resource.data.buyerId;
+      allow read: if okUser() && (request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId);
+      allow update: if okUser() && request.auth.uid == resource.data.sellerId;
+    }
+
+    // NOTIFICATIONS //
+    match /notifications/{notifId} {
+      allow create: if okUser();
+      allow read, update: if okUser() && request.auth.uid == resource.data.targetUserId;
     }
 
     // default denyy
