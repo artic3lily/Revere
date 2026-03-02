@@ -14,7 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system/legacy";
 const FAL_KEY = "ebcbcd17-6b6e-4093-b344-bc64edd3591e:52775e23c3e5c4dc9934179e5bcafc15";
 import { auth, storage } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -39,7 +40,27 @@ export default function TryOnScreen({ route, navigation }) {
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setBodyImage(result.assets[0]);
+    }
+  };
+
+  const takeBodyPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission required",
+        "We need camera permissions to take a photo."
+      );
+      return;
+    }
+
+    let result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       quality: 0.8,
     });
@@ -150,27 +171,51 @@ export default function TryOnScreen({ route, navigation }) {
     }
   };
 
-  const saveToGallery = async () => {
+  const shareImage = async () => {
     if (!resultImage) return;
-
     try {
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
         Alert.alert("Error", "Sharing is not available on this device.");
         return;
       }
+      const fileUri = FileSystem.cacheDirectory + `tryon_${Date.now()}.jpg`;
+      const { uri } = await FileSystem.downloadAsync(resultImage, fileUri);
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/jpeg',
+        dialogTitle: 'Share your fit',
+        UTI: 'public.jpeg'
+      });
+    } catch (error) {
+      console.error("Share error:", error);
+      Alert.alert("Error", "Could not share photo. " + error.message);
+    }
+  };
 
-      // 1. Download the remote image to the app's local cache
+  const saveToGallery = async () => {
+    if (!resultImage) return;
+
+    try {
+      // 1. Download the remote image strictly to the app's local cache
       const fileUri = FileSystem.cacheDirectory + `tryon_${Date.now()}.jpg`;
       const { uri } = await FileSystem.downloadAsync(resultImage, fileUri);
 
-      // 2. Share the local file (OS share sheet allows "Save Image")
-      await Sharing.shareAsync(uri, {
-        mimeType: 'image/jpeg',
-        dialogTitle: 'Save your fit',
-        UTI: 'public.jpeg'
-      });
+      // 2. Attempt to request permissions, but IGNORE crashes caused by the Expo Go AUDIO bug
+      try {
+        await MediaLibrary.requestPermissionsAsync(true); // Attempt write-only
+      } catch (permError) {
+        console.warn("Expected Expo Go Audio Manifest bug occurred. Bypassing.", permError);
+        // Do not return here. Android 13+ scoped storage allows createAssetAsync implicitly.
+      }
+
+      // 3. Force-save the local file to the camera roll
+      const asset = await MediaLibrary.createAssetAsync(uri);
       
+      if (asset) {
+        Alert.alert("Success!", "Your AI Try-On photo has been saved to your gallery!");
+      } else {
+        throw new Error("Failed to create media asset.");
+      }
     } catch (error) {
       console.error("Save error:", error);
       Alert.alert("Error", "Could not save photo. " + error.message);
@@ -205,16 +250,38 @@ export default function TryOnScreen({ route, navigation }) {
             Stand straight, facing the camera. Wear tight clothes for the best fit.
           </Text>
           
-          <TouchableOpacity style={styles.uploadBox} onPress={pickBodyImage}>
-            {bodyImage ? (
-              <Image source={{ uri: bodyImage.uri }} style={styles.uploadedImage} />
-            ) : (
-              <View style={styles.uploadPlaceholder}>
-                <Ionicons name="person-add-outline" size={40} color="#666" />
-                <Text style={styles.uploadText}>Tap to Upload Photo</Text>
+          {bodyImage ? (
+            <View>
+              <View style={styles.uploadBox}>
+                <Image source={{ uri: bodyImage.uri }} style={styles.uploadedImage} />
               </View>
-            )}
-          </TouchableOpacity>
+              <View style={styles.photoActionsRow}>
+                <TouchableOpacity style={styles.photoActionBtn} onPress={takeBodyPhoto}>
+                  <Ionicons name="camera-outline" size={18} color="#000" />
+                  <Text style={styles.photoActionBtnText}>Retake</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.photoActionBtn} onPress={pickBodyImage}>
+                  <Ionicons name="image-outline" size={18} color="#000" />
+                  <Text style={styles.photoActionBtnText}>Choose Other</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.photoActionsRow}>
+              <TouchableOpacity style={styles.uploadBoxSplit} onPress={takeBodyPhoto}>
+                <View style={styles.uploadPlaceholder}>
+                  <Ionicons name="camera-outline" size={32} color="#666" />
+                  <Text style={styles.uploadText}>Take Photo</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.uploadBoxSplit} onPress={pickBodyImage}>
+                <View style={styles.uploadPlaceholder}>
+                  <Ionicons name="image-outline" size={32} color="#666" />
+                  <Text style={styles.uploadText}>Upload</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Step 3: Magic Button or Result */}
@@ -230,10 +297,19 @@ export default function TryOnScreen({ route, navigation }) {
           ) : resultImage ? (
             <View style={styles.resultContainer}>
               <Image source={{ uri: resultImage }} style={styles.resultImage} />
-              <TouchableOpacity style={styles.saveButton} onPress={saveToGallery}>
-                <Ionicons name="share-outline" size={20} color="#fff" />
-                <Text style={styles.saveButtonText}>Share / Save</Text>
-              </TouchableOpacity>
+              
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.saveActionBtn} onPress={saveToGallery}>
+                  <Ionicons name="download-outline" size={20} color="#fff" />
+                  <Text style={styles.saveActionBtnText}>Save</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.shareActionBtn} onPress={shareImage}>
+                  <Ionicons name="share-outline" size={20} color="#000" />
+                  <Text style={styles.shareActionBtnText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity style={styles.resetButton} onPress={() => setResultImage(null)}>
                 <Text style={styles.resetButtonText}>Try Another Photo</Text>
               </TouchableOpacity>
@@ -321,6 +397,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  uploadBoxSplit: {
+    flex: 1,
+    height: 120,
+    backgroundColor: "#fafafa",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#eee",
+    borderStyle: "dashed",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 5,
+  },
+  photoActionsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 10,
+    marginHorizontal: -5,
+  },
+  photoActionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f5f5f5",
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginHorizontal: 5,
+  },
+  photoActionBtnText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#000",
+  },
   uploadPlaceholder: {
     alignItems: "center",
   },
@@ -382,7 +493,7 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
     marginBottom: 20,
   },
-  saveButton: {
+  saveButton: { // keeping purely for backwards compatibility if needed internally
     backgroundColor: "#000",
     flexDirection: "row",
     alignItems: "center",
@@ -392,20 +503,56 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 10,
   },
-  saveButtonText: {
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 10,
+  },
+  saveActionBtn: {
+    backgroundColor: "#000",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    flex: 1,
+    marginRight: 8,
+  },
+  saveActionBtnText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
   },
-  resetButton: {
+  shareActionBtn: {
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 14,
+    borderRadius: 12,
+    flex: 1,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: "#000",
+  },
+  shareActionBtnText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  resetButton: {
+    paddingVertical: 10,
     width: "100%",
     alignItems: "center",
+    marginTop: 5,
   },
   resetButtonText: {
-    color: "#666",
-    fontSize: 16,
-    fontWeight: "500",
+    color: "#8E8E93", // Minimalistic iOS/modern gray
+    fontSize: 14,
+    fontWeight: "400",
+    textDecorationLine: "underline",
   },
 });

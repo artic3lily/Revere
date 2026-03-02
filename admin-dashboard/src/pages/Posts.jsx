@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { collection, deleteDoc, doc, getDocs, limit, orderBy, query, collectionGroup } from "firebase/firestore";
 import { db } from "../firebase";
+import { formatDateTime } from "../utils/date";
 
 export default function Posts() {
   const [posts, setPosts] = useState([]);
@@ -50,13 +51,7 @@ export default function Posts() {
   }, [posts, search]);
 
   const fmtDate = (ts) => {
-    try {
-      if (!ts) return "—";
-      const d = ts?.toDate ? ts.toDate() : new Date(ts);
-      return d.toLocaleString();
-    } catch {
-      return "—";
-    }
+    return formatDateTime(ts);
   };
 
   const onDeletePost = async (post) => {
@@ -218,7 +213,7 @@ export default function Posts() {
                   </div>
                   <div className="kv">
                     <div className="k">Price</div>
-                    <div className="v" style={{ fontWeight: "bold", color: "#fff" }}>
+                    <div className="v" style={{ fontWeight: 900, color: "var(--text)" }}>
                       {typeof selected.price === "number" ? `Rs. ${selected.price}` : "—"}
                     </div>
                   </div>
@@ -236,7 +231,7 @@ export default function Posts() {
               {/* Caption Card */}
               <div className="card" style={{ padding: 14, marginBottom: 16 }}>
                 <div style={{ fontWeight: 900, marginBottom: 8 }}>Caption</div>
-                <p style={{ whiteSpace: "pre-wrap", background: "#f5f5f5", color: "#111", padding: 12, borderRadius: 8, margin: 0 }}>
+                <p style={{ whiteSpace: "pre-wrap", background: "var(--bg)", color: "var(--text)", padding: 12, borderRadius: 8, margin: 0, border: "1px solid var(--stroke)" }}>
                   {selected.caption?.trim()?.length ? selected.caption : "No caption provided."}
                 </p>
               </div>

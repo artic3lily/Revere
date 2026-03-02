@@ -355,6 +355,7 @@ export default function ProfileScreen({ navigation }) {
       setUploading(true);
       setUploadPct(0);
 
+      // 1. Upload Original Image to Firebase Storage
       const storagePath = `posts/${uid}/${Date.now()}.jpg`;
       const { url, storagePath: savedPath } = await uploadImageToStorage({
         uri: newImage,
@@ -362,6 +363,50 @@ export default function ProfileScreen({ navigation }) {
         onProgress: setUploadPct,
       });
 
+      // 2. Upload to Cloudinary for Background Removal (Transparent PNG)
+      const cloudName = "ddvwuw1xq";
+      const uploadPreset = "ml_default"; // You usually need an unsigned upload preset, but we will use the API key approach to be safe if they didn't make one
+
+      let tryOnPngUrl = "";
+      let tryOnWhiteUrl = "";
+
+      try {
+        const formData = new FormData();
+        formData.append("file", {
+          uri: newImage,
+          type: "image/jpeg",
+          name: "upload.jpg",
+        });
+        formData.append("upload_preset", uploadPreset); 
+
+        // Standard Upload
+        const cl_res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        const cl_data = await cl_res.json();
+        console.log("Cloudinary Upload Response:", cl_data);
+
+        if (cl_data.public_id) {
+          // Construct the generative background removal URLs
+          tryOnPngUrl = `https://res.cloudinary.com/${cloudName}/image/upload/e_background_removal/${cl_data.public_id}.png`;
+          tryOnWhiteUrl = `https://res.cloudinary.com/${cloudName}/image/upload/e_gen_background_replace:prompt_solid%20white%20background/${cl_data.public_id}.jpg`;
+          console.log("Generated PNG:", tryOnPngUrl);
+          console.log("Generated White:", tryOnWhiteUrl);
+        } else {
+             console.warn("Cloudinary upload failed:", cl_data);
+             // fallback to original if it fails
+             tryOnPngUrl = url;
+             tryOnWhiteUrl = url;
+        }
+
+      } catch (e) {
+        console.error("Cloudinary processing error:", e);
+        tryOnPngUrl = url;
+        tryOnWhiteUrl = url;
+      }
+
+      // 3. Save all URLs to Firestore
       await addDoc(collection(db, "posts"), {
         ownerId: uid,
         ownerName: profile?.fullName || "User",
@@ -369,7 +414,9 @@ export default function ProfileScreen({ navigation }) {
           profile?.username || (auth.currentUser?.email?.split("@")[0] ?? ""),
         ownerPhotoURL: profile?.photoURL || "",
         caption: newCaption.trim(),
-        imageUrl: url,
+        imageUrl: url, // Original
+        tryOnPngUrl: tryOnPngUrl, // Transparent Cutout
+        tryOnWhiteUrl: tryOnWhiteUrl, // Solid White Background
         storagePath: savedPath,
         price: priceNumber,
         category: newCategory,
@@ -469,7 +516,7 @@ export default function ProfileScreen({ navigation }) {
         { width: tileSize, height: tileSize, opacity: pressed ? 0.9 : 1 },
       ]}
     >
-      <Image source={{ uri: item.imageUrl }} style={styles.tileImg} />
+      <Image source={{ uri: item.tryOnWhiteUrl || item.imageUrl }} style={styles.tileImg} />
       {typeof item.price === "number" && (
         <View style={styles.priceBadge}>
           <Text style={styles.priceBadgeText}>Rs. {item.price}</Text>
@@ -738,7 +785,7 @@ export default function ProfileScreen({ navigation }) {
                 {/* image */}
                 <View style={styles.detailImgWrap}>
                   <Image
-                    source={{ uri: activePost?.imageUrl }}
+                    source={{ uri: activePost?.tryOnWhiteUrl || activePost?.imageUrl }}
                     style={styles.detailImg}
                   />
                 </View>

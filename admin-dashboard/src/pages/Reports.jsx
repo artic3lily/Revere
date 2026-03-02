@@ -12,6 +12,7 @@ import {
     Timestamp,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
+import { formatDateTime } from "../utils/date";
 
 /* Helpers */
 function toDateSafe(ts) {
@@ -24,9 +25,7 @@ function toDateSafe(ts) {
 }
 
 function fmtDate(ts) {
-    const d = toDateSafe(ts);
-    if (!d) return "—";
-    return d.toLocaleString();
+    return formatDateTime(ts);
 }
 
 function toDatetimeLocalValue(date) {

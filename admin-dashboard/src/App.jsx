@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Posts from "./pages/Posts";
 import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotAdmin from "./pages/NotAdmin";
 
 import AdminShell from "./components/AdminShell";
@@ -45,6 +46,14 @@ export default function App() {
         element={
           <AdminShell>
             <Reports />
+          </AdminShell>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <AdminShell>
+            <Settings />
           </AdminShell>
         }
       />

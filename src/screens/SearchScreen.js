@@ -309,7 +309,7 @@ export default function SearchScreen({ navigation }) {
       onPress={() => openPost(item)}
       style={[styles.tile, { width: tileSize, height: tileSize, borderColor: theme.border, backgroundColor: theme.placeholder }]}
     >
-      <Image source={{ uri: item.imageUrl }} style={styles.tileImg} />
+      <Image source={{ uri: item.tryOnWhiteUrl || item.imageUrl }} style={styles.tileImg} />
       {typeof item.price === "number" && (
         <View style={styles.priceBadge}>
           <Text style={styles.priceBadgeText}>Rs. {item.price}</Text>
@@ -511,7 +511,7 @@ export default function SearchScreen({ navigation }) {
                 </Pressable>
 
                 <View style={[styles.detailImgWrap, { borderColor: theme.border, backgroundColor: theme.placeholder }]}>
-                  <Image source={{ uri: activePost?.imageUrl }} style={styles.detailImg} />
+                  <Image source={{ uri: activePost?.tryOnWhiteUrl || activePost?.imageUrl }} style={styles.detailImg} />
                 </View>
 
                 <View style={styles.detailMeta}>

@@ -83,7 +83,7 @@ export default function WishlistScreen({ navigation }) {
         ListHeaderComponent={Header}
         renderItem={({ item }) => (
           <Pressable style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => navigation.navigate('PostDetail', { postId: item.id })}>
-            <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+            <Image source={{ uri: item.tryOnWhiteUrl || item.imageUrl }} style={styles.thumb} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>{item.caption}</Text>
               <Text style={[styles.price, { color: theme.textSecondary }]}>Rs. {item.price}</Text>

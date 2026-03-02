@@ -28,6 +28,7 @@ export default function AdminSidebar({ activePath }) {
         <Item to="/users" label="Users" icon="👥" />
         <Item to="/posts" label="Posts" icon="🧥" />
         <Item to="/reports" label="Reports" icon="🚩" />
+        <Item to="/settings" label="Settings" icon="⚙️" />
       </nav>
 
       <div className="sideFooter">

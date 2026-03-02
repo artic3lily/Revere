@@ -24,7 +24,7 @@ export const categories = [
   {
     id: 5,
     name: "Y2k",
-    image: { uri: "https://thrifttale.com/cdn/shop/articles/Y2K_1_-12_e57ed3b3-ebda-40e7-93a3-7e82044c2007.png?v=1738688532" },
+    image: { uri: "https://i.pinimg.com/736x/89/a9/50/89a950117852f84cf13cfaa38bb6ba60.jpg" },
   },
 ];
 

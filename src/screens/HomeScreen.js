@@ -278,7 +278,7 @@ export default function HomeScreen({ navigation }) {
                 <Pressable
                   onPress={() => navigation.navigate('PostDetail', { postId: p.id })}
                 >
-                  <Image source={{ uri: p.imageUrl }} style={styles.gridImg} />
+                  <Image source={{ uri: p.tryOnWhiteUrl || p.imageUrl }} style={styles.gridImg} />
                   <View style={[styles.gridMeta, { backgroundColor: theme.card }]}>
                     <Text numberOfLines={2} style={[styles.gridCaption, { color: theme.text }]}>{p.caption}</Text>
                     <Text style={[styles.gridPrice, { color: theme.textSecondary }]}>${p.price ?? ''}</Text>

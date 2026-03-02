@@ -348,7 +348,7 @@ export default function UserProfileScreen({ navigation, route }) {
       onPress={() => openPost(item)}
       style={[styles.tile, { width: tileSize, height: tileSize }]}
     >
-      <Image source={{ uri: item.imageUrl }} style={styles.tileImg} />
+      <Image source={{ uri: item.tryOnWhiteUrl || item.imageUrl }} style={styles.tileImg} />
       {typeof item.price === "number" && (
         <View style={styles.priceBadge}>
           <Text style={styles.priceBadgeText}>Rs. {item.price}</Text>
@@ -560,7 +560,7 @@ export default function UserProfileScreen({ navigation, route }) {
                 </View>
 
                 <View style={styles.detailImgWrap}>
-                  <Image source={{ uri: activePost?.imageUrl }} style={styles.detailImg} />
+                  <Image source={{ uri: activePost?.tryOnWhiteUrl || activePost?.imageUrl }} style={styles.detailImg} />
                 </View>
 
                 <View style={styles.detailMeta}>

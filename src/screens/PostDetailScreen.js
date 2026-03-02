@@ -140,7 +140,7 @@ export default function PostDetailScreen({ route, navigation }) {
         </Pressable>
 
         <View style={[styles.imgWrap, { backgroundColor: theme.placeholder, borderColor: theme.border }]}>
-          <Image source={{ uri: post.imageUrl }} style={styles.image} />
+          <Image source={{ uri: post.tryOnWhiteUrl || post.imageUrl }} style={styles.image} />
 
           <View style={styles.heartWrap} pointerEvents="box-none">
             <Pressable style={[styles.heartBtn, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={toggleSaved} hitSlop={10}>
@@ -166,14 +166,14 @@ export default function PostDetailScreen({ route, navigation }) {
 
             <Pressable
               onPress={() => {
-                const tryOnImg = post.tryOnPngUrl || post.imageUrl;
+                const tryOnImg = post.tryOnWhiteUrl || post.imageUrl;
                 if (!tryOnImg) {
                   Alert.alert("Not Available", "This post does not have an image to try on.");
                   return;
                 }
                 navigation.navigate("TryOn", {
                   postId: post.id,
-                  tryOnPngUrl: tryOnImg,
+                  tryOnPngUrl: tryOnImg, // Keep param name same for TryOnScreen
                 });
               }}
               disabled={post.tryOnStatus === "processing"}

@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useLocation } from "react-router-dom";
+import { formatDateTime } from "../utils/date";
 
 /* helpers */
 function toDateSafe(ts) {
@@ -44,9 +45,7 @@ function toDatetimeLocalValue(date) {
 }
 
 function fmtDate(ts) {
-  const d = toDateSafe(ts);
-  if (!d) return "—";
-  return d.toLocaleString();
+  return formatDateTime(ts);
 }
 
 function initials(nameOrUsername) {
@@ -63,7 +62,17 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState(location.state?.search || "");
+  const [statusFilter, setStatusFilter] = useState(location.state?.statusFilter || "all");
   const [busyId, setBusyId] = useState(null);
+
+  useEffect(() => {
+    if (location.state?.search !== undefined) {
+      setSearch(location.state.search);
+    }
+    if (location.state?.statusFilter !== undefined) {
+      setStatusFilter(location.state.statusFilter);
+    }
+  }, [location.state?.search, location.state?.statusFilter]);
 
   /*Details modal*/
   const [detailOpen, setDetailOpen] = useState(false);
@@ -104,9 +113,15 @@ export default function Users() {
   }, []);
 
   const filtered = useMemo(() => {
+    let list = users;
+    if (statusFilter !== "all") {
+      list = list.filter((u) => statusNow(u) === statusFilter);
+    }
+
     const s = search.trim().toLowerCase();
-    if (!s) return users;
-    return users.filter((u) => {
+    if (!s) return list;
+
+    return list.filter((u) => {
       const id = String(u.id || "").toLowerCase();
       const email = String(u.email || "").toLowerCase();
       const username = String(u.username || "").toLowerCase();
@@ -122,7 +137,7 @@ export default function Users() {
         st.includes(s)
       );
     });
-  }, [users, search]);
+  }, [users, search, statusFilter]);
 
   const updateUser = async (uid, patch) => {
     try {
@@ -152,9 +167,38 @@ export default function Users() {
   };
 
   const fmtUntil = (u) => {
-    const until = toDateSafe(u.suspendedUntil);
-    if (!until) return "—";
-    return until.toLocaleString();
+    const rawUntil = toDateSafe(u.suspendedUntil);
+    if (!rawUntil) return "—";
+
+    const dateStr = formatDateTime(u.suspendedUntil);
+    const now = new Date().getTime();
+    const then = rawUntil.getTime();
+
+    if (then <= now) return "—";
+
+    const diffMs = then - now;
+    const diffHoursTotal = diffMs / (1000 * 60 * 60);
+
+    let timeLeft;
+    if (diffHoursTotal >= 23.5) {
+      const d = Math.round(diffHoursTotal / 24);
+      timeLeft = `${d} day${d !== 1 ? 's' : ''} left`;
+    } else if (diffHoursTotal >= 0.95) {
+      const h = Math.round(diffHoursTotal);
+      timeLeft = `${h} hour${h !== 1 ? 's' : ''} left`;
+    } else {
+      const diffMins = Math.round(diffMs / (1000 * 60));
+      timeLeft = `${diffMins} min${diffMins !== 1 ? 's' : ''} left`;
+    }
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <span>{dateStr}</span>
+        <span style={{ color: "var(--warn)", fontWeight: 800, fontSize: "11px", marginTop: "2px" }}>
+          {timeLeft}
+        </span>
+      </div>
+    );
   };
 
   /*Details modal open/close */
@@ -295,13 +339,24 @@ export default function Users() {
           <div className="pageHint">Click a user to view full details, then suspend/ban/restore.</div>
         </div>
 
-        <div className="actionsRow">
+        <div className="actionsRow" style={{ display: 'flex', gap: 12 }}>
+          <select
+            className={`input statusFilter ${statusFilter !== 'all' ? `is-${statusFilter}` : ''}`}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ width: 140 }}
+          >
+            <option value="all">All Roles</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="banned">Banned</option>
+          </select>
           <input
             className="input"
-            placeholder="Search by username, email, uid, status…"
+            placeholder="Search by username, email, uid…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ minWidth: 320 }}
+            style={{ minWidth: 260 }}
           />
         </div>
       </div>
@@ -480,7 +535,7 @@ export default function Users() {
                     </div>
                     <div className="kv">
                       <div className="k">Suspended Until</div>
-                      <div className="v">
+                      <div className="v" style={{ display: "flex", alignItems: "center" }}>
                         {statusNow(detailUser) === "suspended" ? fmtUntil(detailUser) : "—"}
                       </div>
                     </div>
