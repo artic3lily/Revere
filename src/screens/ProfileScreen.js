@@ -18,6 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 
 import { auth, db, storage } from "../config/firebase";
+import { registerListener } from "../services/listenerRegistry";
 import {
   doc,
   getDoc,
@@ -189,9 +190,11 @@ export default function ProfileScreen({ navigation }) {
           },
           (err) => {
             setLoadingPosts(false);
-            Alert.alert("Error", err?.message ?? "Could not load posts");
+            // Don't show alert for permission-denied (happens briefly on logout)
+            if (err?.code !== 'permission-denied') Alert.alert("Error", err?.message ?? "Could not load posts");
           }
         );
+        registerListener(unsubPosts);
       } catch (e) {
         Alert.alert("Error", e?.message ?? "Could not load profile");
       } finally {
@@ -504,7 +507,7 @@ export default function ProfileScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.brand, { color: theme.text }]} numberOfLines={1}>
-          Revere
+          𝓡𝓮𝓿𝓮𝓻𝓮
         </Text>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
           Profile

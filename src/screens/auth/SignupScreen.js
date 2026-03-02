@@ -64,7 +64,7 @@ export default function SignupScreen({ navigation }) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.topRow}>
-          <Text style={styles.brand}>Revere</Text>
+          <Text style={styles.brand}>𝓡𝓮𝓿𝓮𝓻𝓮</Text>
         </View>
 
         <Text style={styles.title}>Hello!{"\n"}Amigo</Text>

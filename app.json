@@ -42,6 +42,16 @@
     },
     "updates": {
       "url": "https://u.expo.dev/aa7bcfc6-8289-4b1e-b64d-de9ad3bce732"
-    }
+    },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Revere to access your photos.",
+          "savePhotosPermission": "Allow Revere to save photos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ]
   }
 }

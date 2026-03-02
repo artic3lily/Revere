@@ -5,6 +5,7 @@ import BottomNav from '../components/BottomNav';
 import { collection, onSnapshot, getDocs, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { registerListener } from '../services/listenerRegistry';
 
 export default function WishlistScreen({ navigation }) {
   const { theme } = useTheme();
@@ -23,12 +24,7 @@ export default function WishlistScreen({ navigation }) {
     const col = collection(db, 'users', uid, 'wishlist');
     unsub = onSnapshot(col, async (snap) => {
       const ids = snap.docs.map(d => d.id);
-      if (ids.length === 0) {
-        setItems([]);
-        setLoading(false);
-        return;
-      }
-      // fetch posts for ids
+      if (ids.length === 0) { setItems([]); setLoading(false); return; }
       try {
         const posts = await Promise.all(ids.map(async (id) => {
           const pSnap = await getDoc(doc(db, 'posts', id));
@@ -39,10 +35,9 @@ export default function WishlistScreen({ navigation }) {
       } catch (e) {
         console.log('Wishlist fetch posts error', e);
         setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    }, (e) => { console.log('Wishlist onSnapshot error', e); setLoading(false); });
+      } finally { setLoading(false); }
+    }, (e) => { if (e?.code !== 'permission-denied') console.log('Wishlist onSnapshot error', e?.message); });
+    registerListener(unsub);
 
     return () => unsub && unsub();
   }, []);
@@ -65,7 +60,7 @@ export default function WishlistScreen({ navigation }) {
 
   const Header = () => (
     <View style={[styles.header, { backgroundColor: theme.header, borderColor: theme.border }]}>
-      <Text style={[styles.brand, { color: theme.text }]}>Revere</Text>
+      <Text style={[styles.brand, { color: theme.text }]}>𝓡𝓮𝓿𝓮𝓻𝓮</Text>
       <Text style={[styles.headerTitle, { color: theme.text }]}>Wishlists</Text>
       <View style={{ width: 40 }} />
     </View>

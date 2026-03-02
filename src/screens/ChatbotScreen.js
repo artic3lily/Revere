@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Image,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
@@ -19,6 +20,8 @@ import { getApp } from "firebase/app";
 
 import { loadChatMessages, saveChatMessage } from "../services/chatStore";
 import { auth } from "../config/firebase";
+
+const kittyImg = require("../../assets/images/kitty.png");
 
 const functions = getFunctions(getApp());
 const fashionChat = httpsCallable(functions, "fashionChat");
@@ -126,8 +129,8 @@ export default function ChatbotScreen({ navigation }) {
             </Pressable>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Feather name="smile" size={18} color={theme.text} />
-                <Text style={[styles.title, { color: theme.text }]}>Miss Ray</Text>
+                <Image source={kittyImg} style={{ width: 28, height: 28, resizeMode: "contain" }} />
+                <Text style={[styles.title, { color: theme.text }]}>Kitty Icône</Text>
             </View>
 
             {/* spacer to keep title centered */}

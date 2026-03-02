@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Image, Pressable, Text } from "react-native";
 import { auth, db } from "../config/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useTheme } from "../context/ThemeContext";
+import { registerListener } from "../services/listenerRegistry";
 
 const homeImg = require("../../assets/images/home.png");
 const cartImg = require("../../assets/images/cart.png");
@@ -16,8 +18,15 @@ export default function BottomNav({ navigation }) {
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [unreadChats, setUnreadChats] = useState(0);
+  const [uid, setUid] = useState(() => auth.currentUser?.uid ?? null);
 
-  const uid = auth.currentUser?.uid;
+  // Keep uid in sync with auth state so listeners tear down on logout
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUid(user?.uid ?? null);
+    });
+    return () => unsub();
+  }, []);
 
   // WISHLIST
   useEffect(() => {
@@ -29,8 +38,9 @@ export default function BottomNav({ navigation }) {
     const unsub = onSnapshot(
       colRef,
       (snap) => setWishlistCount(snap.size),
-      (e) => console.log("Wishlist snap error", e?.message || e)
+      (e) => { if (e?.code !== 'permission-denied') console.log("Wishlist snap error", e?.message); }
     );
+    registerListener(unsub);
     return () => unsub();
   }, [uid]);
 
@@ -44,8 +54,9 @@ export default function BottomNav({ navigation }) {
     const unsub = onSnapshot(
       colRef,
       (snap) => setCartCount(snap.size),
-      (e) => console.log("Cart snap error", e?.message || e)
+      (e) => { if (e?.code !== 'permission-denied') console.log("Cart snap error", e?.message); }
     );
+    registerListener(unsub);
     return () => unsub();
   }, [uid]);
 
@@ -56,7 +67,6 @@ export default function BottomNav({ navigation }) {
       return;
     }
 
-    // No orderBy = no index needed, remember man
     const q = query(collection(db, "threads"), where("members", "array-contains", uid));
 
     const unsub = onSnapshot(
@@ -66,13 +76,13 @@ export default function BottomNav({ navigation }) {
         snap.forEach((d) => {
           const data = d.data();
           const unread = data?.unread?.[uid] || 0;
-          if (unread > 0) count += 1; // count chats, not messages
+          if (unread > 0) count += 1;
         });
         setUnreadChats(count);
       },
-      (e) => console.log("Unread threads error", e?.code, e?.message || e)
+      (e) => { if (e?.code !== 'permission-denied') console.log("Unread threads error", e?.code, e?.message); }
     );
-
+    registerListener(unsub);
     return () => unsub();
   }, [uid]);
 

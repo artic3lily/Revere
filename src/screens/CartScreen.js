@@ -5,6 +5,7 @@ import { collection, onSnapshot, doc, getDoc, deleteDoc } from 'firebase/firesto
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
+import { registerListener } from '../services/listenerRegistry';
 
 export default function CartScreen({ navigation }) {
   const { theme } = useTheme();
@@ -23,12 +24,7 @@ export default function CartScreen({ navigation }) {
     const col = collection(db, 'users', uid, 'cart');
     unsub = onSnapshot(col, async (snap) => {
       const ids = snap.docs.map(d => d.id);
-      if (ids.length === 0) {
-        setItems([]);
-        setLoading(false);
-        return;
-      }
-      // fetch posts for ids
+      if (ids.length === 0) { setItems([]); setLoading(false); return; }
       try {
         const posts = await Promise.all(ids.map(async (id) => {
           const pSnap = await getDoc(doc(db, 'posts', id));
@@ -39,10 +35,9 @@ export default function CartScreen({ navigation }) {
       } catch (e) {
         console.log('Cart fetch posts error', e);
         setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    }, (e) => { console.log('Cart onSnapshot error', e); setLoading(false); });
+      } finally { setLoading(false); }
+    }, (e) => { if (e?.code !== 'permission-denied') console.log('Cart onSnapshot error', e?.message); });
+    registerListener(unsub);
 
     return () => unsub && unsub();
   }, []);
@@ -59,7 +54,7 @@ export default function CartScreen({ navigation }) {
 
   const Header = () => (
     <View style={[styles.header, { backgroundColor: theme.header, borderColor: theme.border }]}>
-      <Text style={[styles.brand, { color: theme.text }]}>Revere</Text>
+      <Text style={[styles.brand, { color: theme.text }]}>𝓡𝓮𝓿𝓮𝓻𝓮</Text>
       <Text style={[styles.headerTitle, { color: theme.text }]}>Cart</Text>
       <View style={{ width: 40 }} />
     </View>

@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../config/firebase";
+import { registerListener, unsubscribeAll } from "../services/listenerRegistry";
 import {
   collection,
   query,
@@ -37,6 +38,7 @@ import { categories, items } from "../data/dummyData";
 const menuImg = require("../../assets/images/menu.png");
 const searchImg = require("../../assets/images/search.png");
 const cartImg = require("../../assets/images/cart.png");
+const kittyImg = require("../../assets/images/kitty.png");
 
 function formatJoined(ts) {
   try {
@@ -88,11 +90,19 @@ export default function HomeScreen({ navigation }) {
   const [wishlist, setWishlist] = useState(new Set());
 
   useEffect(() => {
+    if (!auth.currentUser?.uid) return;
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(60));
-    const unsub = onSnapshot(q, (snap) => {
-      setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoadingPosts(false);
-    });
+    const unsub = onSnapshot(q,
+      (snap) => {
+        setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setLoadingPosts(false);
+      },
+      (e) => {
+        if (e?.code !== 'permission-denied') console.log('Posts snap error', e?.message);
+        setLoadingPosts(false);
+      }
+    );
+    registerListener(unsub);
     return () => unsub();
   }, []);
 
@@ -126,8 +136,11 @@ export default function HomeScreen({ navigation }) {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          await signOut(auth);
           setDrawerOpen(false);
+          // Unsubscribe ALL active Firestore listeners BEFORE signing out
+          // so they don't fire a permission-denied error after auth clears.
+          unsubscribeAll();
+          await signOut(auth);
         },
       },
     ]);
@@ -160,7 +173,7 @@ export default function HomeScreen({ navigation }) {
               style={{ marginLeft: 12 }}
               onPress={() => navigation.navigate("Chatbot")}
             >
-              <Feather name="message-circle" size={22} color={theme.icon} />
+              <Image source={kittyImg} style={{ width: 28, height: 28, resizeMode: "contain" }} />
             </Pressable>
           </View>
         </View>

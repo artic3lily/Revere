@@ -22,7 +22,7 @@ import InboxScreen from "../screens/InboxScreen";
 import { doc, getDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { db } from "../config/firebase";
-
+import TryOnScreen from "../screens/TryOnScreen";
 
 
 const Stack = createNativeStackNavigator();
@@ -99,6 +99,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Inbox" component={InboxScreen} />
             <Stack.Screen name="FollowList" component={FollowListScreen} />
             <Stack.Screen name="RatingList" component={RatingListScreen} />
+            <Stack.Screen name="TryOn" component={TryOnScreen} />
           </>
         ) : (
           <>

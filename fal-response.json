@@ -1,0 +1,11 @@
+{
+  "status": "COMPLETED",
+  "request_id": "a9b9b618-5940-4482-835d-0993ca4f436f",
+  "response_url": "https://queue.fal.run/fal-ai/idm-vton/requests/a9b9b618-5940-4482-835d-0993ca4f436f",
+  "status_url": "https://queue.fal.run/fal-ai/idm-vton/requests/a9b9b618-5940-4482-835d-0993ca4f436f/status",
+  "cancel_url": "https://queue.fal.run/fal-ai/idm-vton/requests/a9b9b618-5940-4482-835d-0993ca4f436f/cancel",
+  "logs": null,
+  "metrics": {
+    "inference_time": 0.03797602653503418
+  }
+}

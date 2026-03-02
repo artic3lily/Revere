@@ -5,6 +5,7 @@ import { auth, db } from "../config/firebase";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { useTheme } from "../context/ThemeContext";
 import BottomNav from "../components/BottomNav";
+import { registerListener } from "../services/listenerRegistry";
 
 export default function InboxScreen({ navigation }) {
   const { theme } = useTheme();
@@ -25,23 +26,20 @@ export default function InboxScreen({ navigation }) {
       q,
       (snap) => {
         let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        
-        // Fix missing index by sorting locally
         list.sort((a, b) => {
           const at = a.updatedAt?.toMillis?.() ?? 0;
           const bt = b.updatedAt?.toMillis?.() ?? 0;
-          return bt - at; // descending
+          return bt - at;
         });
-
         setThreads(list);
         setLoading(false);
       },
       (e) => {
-        console.log("Inbox load error:", e?.code, e?.message || e);
+        if (e?.code !== 'permission-denied') console.log("Inbox load error:", e?.code, e?.message);
         setLoading(false);
       }
     );
-
+    registerListener(unsub);
     return () => unsub();
   }, [uid]);
 
@@ -105,9 +103,7 @@ export default function InboxScreen({ navigation }) {
   return (
     <View style={[styles.screen, { backgroundColor: theme.bg }]}>
       <View style={styles.topbar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={[styles.iconBtn, { borderColor: theme.border, backgroundColor: theme.bg }]}>
-          <Feather name="arrow-left" size={20} color={theme.icon} />
-        </Pressable>
+        <Text style={[styles.brand, { color: theme.text }]}>𝓡𝓮𝓿𝓮𝓻𝓮</Text>
         <Text style={[styles.title, { color: theme.text }]}>Messages</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -152,6 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   title: { fontSize: 16, fontWeight: "900", color: "#111" },
+  brand: { fontSize: 14, fontWeight: "800", letterSpacing: 0.5 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { marginTop: 18, textAlign: "center", color: "#111", opacity: 0.55, fontWeight: "800" },
 

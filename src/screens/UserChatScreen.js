@@ -16,6 +16,7 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import { auth, db } from "../config/firebase";
+import { registerListener } from "../services/listenerRegistry";
 import {
   doc,
   getDoc,
@@ -141,25 +142,28 @@ export default function UserChatScreen({ navigation, route }) {
         (snap) => {
           const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           setMessages(list);
-          
-          // if any new messages, keep bottom view
           setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 50);
         },
-        (e) => console.log("Messages listener error:", e?.code, e?.message)
+        (e) => { if (e?.code !== 'permission-denied') console.log("Messages listener error:", e?.code, e?.message); }
       );
+      registerListener(unsub);
 
       // Listen to thread strictly to update seen logic
-      const unsubThread = onSnapshot(doc(db, "threads", threadId), (snap) => {
-         if (snap.exists()) {
-             const data = snap.data();
-             const theirUnread = data?.unread?.[otherUserId] || 0;
-             // if they have 0 unread messages, it means they have seen the last message sent by me
-             setLastMessageReadByThem(theirUnread === 0);
-         }
-      });
+      const unsubThread = onSnapshot(
+        doc(db, "threads", threadId),
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            const theirUnread = data?.unread?.[otherUserId] || 0;
+            setLastMessageReadByThem(theirUnread === 0);
+          }
+        },
+        (e) => { if (e?.code !== 'permission-denied') console.log("Thread listener error:", e?.code, e?.message); }
+      );
+      registerListener(unsubThread);
       return () => {
-         unsub();
-         unsubThread();
+        unsub();
+        unsubThread();
       };
     });
 

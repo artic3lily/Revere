@@ -159,9 +159,40 @@ export default function PostDetailScreen({ route, navigation }) {
         </View>
 
         {post.ownerId !== auth.currentUser?.uid && (
-          <Pressable style={[styles.cartBtn, inCart && styles.cartBtnActive, inCart ? { backgroundColor: theme.buttonBg } : { borderColor: theme.text }]} onPress={toggleCart}>
-            <Text style={[styles.cartBtnText, inCart && styles.cartBtnTextActive, inCart ? { color: theme.buttonText } : { color: theme.text }]}>{inCart ? 'Remove from Cart' : 'Add to Cart'}</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            <Pressable style={[styles.cartBtn, { flex: 1, marginTop: 0 }, inCart && styles.cartBtnActive, inCart ? { backgroundColor: theme.buttonBg } : { borderColor: theme.text }]} onPress={toggleCart}>
+              <Text style={[styles.cartBtnText, inCart && styles.cartBtnTextActive, inCart ? { color: theme.buttonText } : { color: theme.text }]}>{inCart ? 'Remove from Cart' : 'Add to Cart'}</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                const tryOnImg = post.tryOnPngUrl || post.imageUrl;
+                if (!tryOnImg) {
+                  Alert.alert("Not Available", "This post does not have an image to try on.");
+                  return;
+                }
+                navigation.navigate("TryOn", {
+                  postId: post.id,
+                  tryOnPngUrl: tryOnImg,
+                });
+              }}
+              disabled={post.tryOnStatus === "processing"}
+              style={[
+                styles.cartBtn, 
+                { 
+                  flex: 1, 
+                  marginTop: 0, 
+                  backgroundColor: theme.text, 
+                  borderColor: theme.text,
+                  opacity: post.tryOnStatus === "processing" ? 0.5 : 1
+                }
+              ]}
+            >
+              <Text style={[styles.cartBtnText, { color: theme.bg, textAlign: "center" }]}>
+                {post.tryOnStatus === "processing" ? "Preparing Try-On..." : "Try On"}
+              </Text>
+            </Pressable>
+          </View>
         )}
       </ScrollView>
     </View>
