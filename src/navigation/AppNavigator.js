@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Modal, StyleSheet, Text } from "react-native";
+import { BlurView } from "expo-blur";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged } from "firebase/auth";
@@ -33,15 +34,28 @@ const Stack = createNativeStackNavigator();
 export default function AppNavigator() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isInitialAppLoad = React.useRef(true);
+  const currentUserUidRef = React.useRef(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       try {
         if (!u) {
+          currentUserUidRef.current = null;
           setUser(null);
+          setLoading(false);
+          isInitialAppLoad.current = false;
+          return;
+        }
+
+        if (currentUserUidRef.current === u.uid) {
+          setUser(u);
           setLoading(false);
           return;
         }
+
+        currentUserUidRef.current = u.uid;
 
         //Check Firestore user status
         const snap = await getDoc(doc(db, "users", u.uid));
@@ -61,8 +75,18 @@ export default function AppNavigator() {
         }
 
         //allowed
-        setUser(u);
-        setLoading(false);
+        if (!isInitialAppLoad.current) {
+          setShowSuccessModal(true);
+          setUser(u);
+          setLoading(false);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+          }, 2000);
+        } else {
+          setUser(u);
+          setLoading(false);
+          isInitialAppLoad.current = false;
+        }
       } catch (e) {
         console.log("Auth guard error:", e?.message || e);
 
@@ -114,6 +138,34 @@ export default function AppNavigator() {
           </>
         )}
       </Stack.Navigator>
+
+      <Modal transparent visible={showSuccessModal} animationType="fade">
+        <BlurView intensity={60} tint="dark" style={styles.blurOverlay}>
+          <View style={styles.successCard}>
+            <Text style={styles.successText}>You are successfully logged in! (ᵔᗜᵔ)◜</Text>
+          </View>
+        </BlurView>
+      </Modal>
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  blurOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successCard: {
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  successText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+});

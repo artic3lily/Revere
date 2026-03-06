@@ -54,9 +54,14 @@ export default function SignupScreen({ navigation }) {
         updatedAt: serverTimestamp(),
       });
     } catch (err) {
-        console.log("SIGNUP ERROR CODE:", err?.code);
-        console.log("SIGNUP ERROR MESSAGE:", err?.message);
+      console.log("SIGNUP ERROR CODE:", err?.code);
+      console.log("SIGNUP ERROR MESSAGE:", err?.message);
+      
+      if (err?.code === "auth/email-already-in-use") {
+        Alert.alert("Registration Failed", "( ˶°ㅁ°) email already exists");
+      } else {
         Alert.alert("Signup failed", `${err?.code}\n${err?.message}`);
+      }
     }
   };
 
