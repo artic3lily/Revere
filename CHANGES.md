@@ -5,6 +5,38 @@ and what you should notice after pulling this branch in VS Code.
 
 ---
 
+## ✅ "I clicked Pull — am I updated?"
+
+**Maybe — it depends on which branch you were on when you clicked Pull.**
+
+The performance improvements are on the branch **`copilot/identify-improve-slow-code`**,
+**not** on `main`. Clicking Pull only updates whichever branch you are currently on.
+
+### How to check in 30 seconds
+
+1. Look at the **bottom-left corner of VS Code**. You will see the current branch name there.
+   - If it says **`copilot/identify-improve-slow-code`** → you are on the right branch.
+     If you also clicked Pull successfully, **you are up to date. ✅**
+   - If it says **`main`** (or any other branch) → the changes are not on your machine yet.
+     Follow the steps below.
+
+2. **Quick file check:** open `CHANGES.md` in your project.
+   - If you can see this file, you have the changes. ✅
+   - If the file doesn't exist, you need to switch branches (see below).
+
+### Switch to the right branch (takes 30 seconds)
+
+Open the VS Code terminal (**Terminal → New Terminal**) and run:
+
+```sh
+git fetch origin
+git checkout copilot/identify-improve-slow-code
+```
+
+That's it. You'll see all 7 updated source files immediately.
+
+---
+
 ## How to see the changes in VS Code
 
 > **Important:** The changes are on the branch called `copilot/identify-improve-slow-code`,
