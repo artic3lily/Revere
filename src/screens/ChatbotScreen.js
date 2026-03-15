@@ -26,21 +26,23 @@ const kittyImg = require("../../assets/images/kitty.png");
 const functions = getFunctions(getApp());
 const fashionChat = httpsCallable(functions, "fashionChat");
 
+// Isolated component so its internal state updates don't re-render ChatbotScreen
+function TypingIndicator({ theme }) {
+  const [dots, setDots] = useState(".");
+  useEffect(() => {
+    const t = setInterval(() => {
+      setDots((d) => (d === "." ? ".." : d === ".." ? "..." : "."));
+    }, 450);
+    return () => clearInterval(t);
+  }, []);
+  return <Text style={[styles.msgText, { color: theme.text }]}>{`Typing${dots}`}</Text>;
+}
+
 export default function ChatbotScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-
-
-  const [dots, setDots] = useState(".");
-  useEffect(() => {
-    if (!loading) return;
-    const t = setInterval(() => {
-      setDots((d) => (d === "." ? ".." : d === ".." ? "..." : "."));
-    }, 450);
-    return () => clearInterval(t);
-  }, [loading]);
 
   // Load saved messages when screen opens
   useEffect(() => {
@@ -65,10 +67,11 @@ export default function ChatbotScreen({ navigation }) {
   };
 
   const dataWithTyping = useMemo(() => {
-    // while loading, show "typing" bubble 
+    // while loading, show "typing" bubble
+    // dots animation is handled inside TypingIndicator; this list stays stable during animation
     if (!loading) return messages;
-    return [...messages, { role: "assistant_typing", content: `Typing${dots}` }];
-  }, [messages, loading, dots]);
+    return [...messages, { role: "assistant_typing", content: "" }];
+  }, [messages, loading]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -156,7 +159,10 @@ export default function ChatbotScreen({ navigation }) {
                     isTyping && styles.typingBubble,
                   ]}
                 >
-                  <Text style={[styles.msgText, isUser ? { color: isDark ? "#fff" : "#111" } : { color: theme.text }]}>{item.content}</Text>
+                  {isTyping
+                    ? <TypingIndicator theme={theme} />
+                    : <Text style={[styles.msgText, isUser ? { color: isDark ? "#fff" : "#111" } : { color: theme.text }]}>{item.content}</Text>
+                  }
                 </View>
               );
             }}

@@ -104,7 +104,7 @@ export default function HomeScreen({ navigation }) {
 
   useEffect(() => {
     if (!auth.currentUser?.uid) return;
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(60));
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(20));
     const unsub = onSnapshot(q,
       (snap) => {
         setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
