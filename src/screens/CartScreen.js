@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { auth, db } from '../config/firebase';
-import { collection, onSnapshot, doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDocs, query, where, documentId, deleteDoc } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
@@ -27,12 +27,21 @@ export default function CartScreen({ navigation }) {
       const ids = snap.docs.map(d => d.id);
       if (ids.length === 0) { setItems([]); setLoading(false); return; }
       try {
-        const posts = await Promise.all(ids.map(async (id) => {
-          const pSnap = await getDoc(doc(db, 'posts', id));
-          if (!pSnap.exists()) return null;
-          return { id: pSnap.id, ...pSnap.data() };
-        }));
-        setItems(posts.filter(Boolean));
+        // Batch reads: split into chunks of 30 (Firestore 'in' query limit)
+        // This replaces N individual getDoc calls with ceil(N/30) batch queries
+        const chunks = [];
+        for (let i = 0; i < ids.length; i += 30) {
+          chunks.push(ids.slice(i, i + 30));
+        }
+        const postResults = [];
+        for (const chunk of chunks) {
+          const q = query(collection(db, 'posts'), where(documentId(), 'in', chunk));
+          const batchSnap = await getDocs(q);
+          batchSnap.docs.forEach(d => postResults.push({ id: d.id, ...d.data() }));
+        }
+        // Restore the original order from the cart snapshot
+        const resultMap = new Map(postResults.map(p => [p.id, p]));
+        setItems(ids.map(id => resultMap.get(id)).filter(Boolean));
       } catch (e) {
         console.log('Cart fetch posts error', e);
         setItems([]);

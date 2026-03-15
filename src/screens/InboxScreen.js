@@ -19,18 +19,14 @@ export default function InboxScreen({ navigation }) {
 
     const q = query(
       collection(db, "threads"),
-      where("members", "array-contains", uid)
+      where("members", "array-contains", uid),
+      orderBy("updatedAt", "desc")
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        let list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        list.sort((a, b) => {
-          const at = a.updatedAt?.toMillis?.() ?? 0;
-          const bt = b.updatedAt?.toMillis?.() ?? 0;
-          return bt - at;
-        });
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setThreads(list);
         setLoading(false);
       },

@@ -115,12 +115,19 @@ export default function TryOnScreen({ route, navigation }) {
       const { request_id } = await submitRes.json();
       if (!request_id) throw new Error("No request_id returned from Fal.ai");
 
-      // 3. Poll for the result
+      // 3. Poll for the result with exponential backoff
       let generatedUrl = null;
       let isCompleted = false;
+      let pollInterval = 2000;        // start at 2 s
+      const MAX_POLL_INTERVAL = 8000; // cap at 8 s (2 → 4 → 8 → 8 → …)
+      const MAX_POLL_ATTEMPTS = 30;   // ~3 min worst-case before giving up
+      let attempts = 0;
 
-      while (!isCompleted) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before checking
+      while (!isCompleted && attempts < MAX_POLL_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        attempts++;
+        // True exponential backoff: double the interval each attempt, capped at max
+        pollInterval = Math.min(MAX_POLL_INTERVAL, pollInterval * 2);
 
         const statusRes = await fetch(`https://queue.fal.run/fal-ai/idm-vton/requests/${request_id}/status`, {
           headers: {
@@ -156,6 +163,10 @@ export default function TryOnScreen({ route, navigation }) {
         } else if (statusData.status === "FAILED") {
           throw new Error("Fal.ai processing failed on their backend servers.");
         }
+      }
+
+      if (!isCompleted) {
+        throw new Error("Try-on timed out. Please try again.");
       }
 
       if (generatedUrl) {
