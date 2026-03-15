@@ -7,13 +7,102 @@ and what you should notice after pulling this branch in VS Code.
 
 ## How to see the changes in VS Code
 
-1. Open VS Code in your Revere project folder.
-2. Open the **Source Control** panel (the branch icon on the left sidebar, or press `Ctrl+Shift+G` / `Cmd+Shift+G`).
-3. Click **Pull** (or run `git pull` in the VS Code terminal).
-4. The 7 changed files will appear in your editor with the updated code.
+> **Important:** The changes are on the branch called `copilot/identify-improve-slow-code`,
+> **not** on `main`. Make sure you switch to — or pull — the correct branch (see steps below).
 
-You can also compare before/after by opening any of the files listed below and
-looking at the Git history (`Right-click → Open Timeline` in the Explorer panel).
+### Step-by-step
+
+1. Open VS Code in your Revere project folder.
+2. Open the built-in terminal: **Terminal → New Terminal** (or `` Ctrl+` `` / `` Cmd+` ``).
+3. Run these two commands one at a time:
+
+```sh
+git fetch origin
+git checkout copilot/identify-improve-slow-code
+```
+
+4. You will now see all the updated files in your editor.
+5. The 7 changed source files and this `CHANGES.md` file will appear in your project.
+
+You can compare before/after by right-clicking any changed file in the Explorer
+panel and choosing **Open Timeline**, or by opening the **Source Control** panel
+(`Ctrl+Shift+G` / `Cmd+Shift+G`) and clicking a file to see its diff.
+
+---
+
+## Troubleshooting: "Could not resolve host: github.com"
+
+If you see this error when running `git pull`:
+
+```
+fatal: unable to access 'https://github.com/artic3lily/Revere.git/':
+Could not resolve host: github.com
+```
+
+This means **your computer cannot reach GitHub right now**. The code in the
+repository is fine — this is a network problem on your machine. Here is how to
+fix it:
+
+### 1 — Check your internet connection
+
+Open a browser and go to https://github.com. If the page does not load, your
+internet is down. Reconnect to Wi-Fi or check your cable.
+
+### 2 — Flush your DNS cache (most common fix)
+
+**Windows:**
+```
+Win + R → type cmd → press Enter
+ipconfig /flushdns
+```
+
+**macOS:**
+```sh
+sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
+```
+
+**Linux:**
+```sh
+sudo systemd-resolve --flush-caches
+```
+
+After flushing, open a new terminal and try `git fetch origin` again.
+
+### 3 — Try using 8.8.8.8 as your DNS server
+
+If flushing did not help, your DNS server may be unreliable. Temporarily
+switch to Google's public DNS:
+
+- **Windows:** Control Panel → Network → Adapter Settings → IPv4 Properties
+  → set "Preferred DNS server" to `8.8.8.8`
+- **macOS:** System Preferences → Network → Advanced → DNS → add `8.8.8.8`
+
+### 4 — Turn off VPN or proxy
+
+If you are connected to a VPN or corporate proxy, try disconnecting it and
+then running `git fetch origin` again.
+
+### 5 — Make sure you are pulling the right branch
+
+The changes are on `copilot/identify-improve-slow-code`, **not** `main`.
+Running `git pull --tags origin main` will not bring in these changes even if
+your network is working. Use:
+
+```sh
+git fetch origin
+git checkout copilot/identify-improve-slow-code
+```
+
+### 6 — Test git connectivity directly
+
+In your terminal, run:
+
+```sh
+git ls-remote https://github.com/artic3lily/Revere.git
+```
+
+If that works, your connection to GitHub is fine.
+If it still says "Could not resolve host", your DNS/network is still the problem — keep troubleshooting steps 1–4 above.
 
 ---
 
