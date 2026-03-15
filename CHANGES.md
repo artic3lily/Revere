@@ -5,18 +5,25 @@ and what you should notice after pulling this branch in VS Code.
 
 ---
 
-## ✅ "I clicked Pull — am I updated?"
+## ✅ "I clicked Pull / Sync Changes — am I updated?"
 
-**Maybe — it depends on which branch you were on when you clicked Pull.**
+**Maybe — it depends on which branch you were on when you clicked it.**
 
-The performance improvements are on the branch **`copilot/identify-improve-slow-code`**,
-**not** on `main`. Clicking Pull only updates whichever branch you are currently on.
+> ### 🔑 Key fact
+> **"Sync Changes", "Pull", and "Push" in VS Code only work on the branch you
+> are currently on.** They will never automatically bring in changes from a
+> *different* branch.
+>
+> The performance improvements live on the branch
+> **`copilot/identify-improve-slow-code`**, **not** on `main`.
+> If you clicked Sync Changes while on `main`, those improvements were not
+> pulled to your machine — even if the sync said it succeeded.
 
 ### How to check in 30 seconds
 
 1. Look at the **bottom-left corner of VS Code**. You will see the current branch name there.
    - If it says **`copilot/identify-improve-slow-code`** → you are on the right branch.
-     If you also clicked Pull successfully, **you are up to date. ✅**
+     If you also clicked Pull/Sync successfully, **you are up to date. ✅**
    - If it says **`main`** (or any other branch) → the changes are not on your machine yet.
      Follow the steps below.
 
@@ -39,6 +46,14 @@ git checkout copilot/identify-improve-slow-code
 ```
 
 That's it. You'll see all 7 updated source files immediately.
+
+> **"I ran `git checkout` but the code still looks the same / app feels the same"**
+>
+> The 7 improvements are already baked into the files on this branch —
+> you don't need to install anything extra or restart the build. The app
+> will use the improved code automatically the next time you run it (`npx expo start`).
+> If you want to double-check a specific file, look at the list in the
+> **"Files changed and what was fixed"** section below.
 
 ---
 
