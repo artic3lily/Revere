@@ -20,9 +20,14 @@ The performance improvements are on the branch **`copilot/identify-improve-slow-
    - If it says **`main`** (or any other branch) → the changes are not on your machine yet.
      Follow the steps below.
 
-2. **Quick file check:** open `CHANGES.md` in your project.
-   - If you can see this file, you have the changes. ✅
-   - If the file doesn't exist, you need to switch branches (see below).
+2. **Quick file check:** look for `CHANGES.md` **at the root of your project** — that means it should appear at the very top level of your file list in VS Code's Explorer panel, right next to files like `App.js`, `package.json`, `README.md`, etc.
+   - If you see it there → you have the changes. ✅
+   - If you don't see it at the root → you need to switch branches (see below).
+
+   > ⚠️ **Watch out for `node_modules/asap/CHANGES.md`** — this is a completely
+   > different file that belongs to an npm package. It is **not** the Revere
+   > performance notes. Make sure the file you open is at the root, **not** inside
+   > a `node_modules` folder.
 
 ### Switch to the right branch (takes 30 seconds)
 
