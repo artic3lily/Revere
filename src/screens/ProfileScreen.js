@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 
@@ -24,6 +25,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  increment,
   collection,
   addDoc,
   query,
@@ -44,8 +46,9 @@ import {
 
 import BottomNav from "../components/BottomNav";
 import { useTheme } from "../context/ThemeContext";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
 
-const CATEGORIES = ["Grunge", "Casual", "Elegant", "Chic", "Y2k"];
+const CATEGORIES = ["Grunge", "Casual", "Elegant", "Chic", "Y2k", "Vintage", "Minimalistic", "Street Wear", "Bohemian", "Sporty", "Cottage Core", "Preppy"];
 
 function formatJoined(ts) {
   try {
@@ -70,6 +73,9 @@ export default function ProfileScreen({ navigation }) {
 
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("All");
   const [tagQuery, setTagQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
 
   // counts
   const [followersCount, setFollowersCount] = useState(0);
@@ -78,14 +84,16 @@ export default function ProfileScreen({ navigation }) {
   // Upload
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Add Post modal
   const [modalOpen, setModalOpen] = useState(false);
+  const [postError, setPostError] = useState("");
   const [newCaption, setNewCaption] = useState("");
   const [newImage, setNewImage] = useState(null);
   const [newPrice, setNewPrice] = useState("");
   const [newTags, setNewTags] = useState("");
   const [newCategory, setNewCategory] = useState(CATEGORIES[0]);
+  const [newCategoryDropdownOpen, setNewCategoryDropdownOpen] = useState(false);
 
   // Edit Profile modal
   const [editOpen, setEditOpen] = useState(false);
@@ -332,16 +340,17 @@ export default function ProfileScreen({ navigation }) {
 
   const onCreatePost = async () => {
     if (!uid) return;
+    setPostError("");
 
-    if (!newImage) {
-      Alert.alert("Missing photo", "Please select a photo for your post.");
+    if (!newImage || !newCaption.trim() || !newPrice.trim() || !newTags.trim() || !newCategory) {
+      setPostError("Please add necessary info");
       return;
     }
 
     const priceNumber =
       newPrice.trim().length === 0 ? null : Number(newPrice.trim());
     if (priceNumber !== null && Number.isNaN(priceNumber)) {
-      Alert.alert("Invalid price", "Please enter a number like 1200");
+      setPostError("Invalid price format");
       return;
     }
 
@@ -427,9 +436,12 @@ export default function ProfileScreen({ navigation }) {
 
       setModalOpen(false);
 
-      // op, reset refresh to show new posts in feed
+      // reshow new posts
       setActiveCategoryFilter("All");
       setTagQuery("");
+
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 2000);
     } catch (e) {
       Alert.alert("Error", e?.message ?? "Could not create post");
     } finally {
@@ -438,36 +450,40 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const onDeletePost = async (post) => {
-    Alert.alert("Delete post?", "This will remove your post.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, "posts", post.id));
-            if (post.storagePath) {
-              await deleteObject(ref(storage, post.storagePath));
-            }
-            setDetailOpen(false);
-            setActivePost(null);
-          } catch (e) {
-            Alert.alert(
-              "Delete failed",
-              e?.message ??
-                "Delete blocked by rules. (You can delete only your own uploads)"
-            );
-          }
-        },
-      },
-    ]);
+  const onDeletePost = (post) => {
+    setPostToDelete(post);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return;
+    try {
+      await deleteDoc(doc(db, "posts", postToDelete.id));
+      if (postToDelete.storagePath) {
+        await deleteObject(ref(storage, postToDelete.storagePath));
+      }
+      setDetailOpen(false);
+      setActivePost(null);
+    } catch (e) {
+      Alert.alert(
+        "Delete failed",
+        e?.message ??
+          "Delete blocked by rules. (You can delete only your own uploads)"
+      );
+    } finally {
+      setDeleteModalVisible(false);
+      setPostToDelete(null);
+    }
   };
 
   // post detail helpers
   const openPostDetail = async (post) => {
     setActivePost(post);
     setDetailOpen(true);
+
+    if (post?.id) {
+      updateDoc(doc(db, "posts", post.id), { views: increment(1) }).catch(() => {});
+    }
 
     setTimeout(
       () =>
@@ -517,6 +533,11 @@ export default function ProfileScreen({ navigation }) {
       ]}
     >
       <Image source={{ uri: item.tryOnWhiteUrl || item.imageUrl }} style={styles.tileImg} />
+      {item.sold && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 2 }}>Sold</Text>
+        </View>
+      )}
       {typeof item.price === "number" && (
         <View style={styles.priceBadge}>
           <Text style={styles.priceBadgeText}>Rs. {item.price}</Text>
@@ -662,27 +683,16 @@ export default function ProfileScreen({ navigation }) {
           style={[styles.filterInput, { backgroundColor: theme.card, borderColor: theme.border, color: theme.text }]}
         />
 
-        <View style={styles.filterChipsRow}>
-          {["All", ...CATEGORIES].map((c) => {
-            const active = activeCategoryFilter === c;
-            return (
-              <Pressable
-                key={c}
-                onPress={() => setActiveCategoryFilter(c)}
-                style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.border }, active && styles.filterChipActive]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    { color: theme.text },
-                    active && styles.filterChipTextActive,
-                  ]}
-                >
-                  {c}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <View style={[styles.filterChipsRow, { alignItems: 'center' }]}>
+          <Pressable
+            style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.border, flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+            onPress={() => setDropdownOpen(true)}
+          >
+            <Text style={[styles.filterChipText, { color: theme.text, opacity: 1 }]}>
+              Category: {activeCategoryFilter}
+            </Text>
+            <Feather name="chevron-down" size={14} color={theme.text} />
+          </Pressable>
         </View>
 
         {/* little helper text */}
@@ -857,7 +867,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={[styles.modalTitle, { color: theme.text }]}>New Post</Text>
 
             <Pressable
-              style={[styles.pickBtn, { borderColor: theme.border }]}
+              style={[styles.pickBtn, { borderColor: theme.border, marginTop: 4 }]}
               onPress={pickPostImage}
               disabled={uploading}
             >
@@ -887,26 +897,16 @@ export default function ProfileScreen({ navigation }) {
             />
 
             <Text style={[styles.smallLabel, { color: theme.text }]}>Category</Text>
-            <View style={styles.chipsRow}>
-              {CATEGORIES.map((c) => (
-                <Pressable
-                  key={c}
-                  onPress={() => setNewCategory(c)}
-                  style={[styles.chip, { backgroundColor: theme.bg, borderColor: theme.border }, newCategory === c && styles.chipActive]}
-                  disabled={uploading}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      { color: theme.textSecondary },
-                      newCategory === c && styles.chipTextActive,
-                    ]}
-                  >
-                    {c}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <Pressable
+              style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, marginTop: 8 }]}
+              onPress={() => setNewCategoryDropdownOpen(true)}
+              disabled={uploading}
+            >
+              <Text style={[styles.filterChipText, { color: theme.text, opacity: 1, fontSize: 13 }]}>
+                {newCategory || "Select Category"}
+              </Text>
+              <Feather name="chevron-down" size={16} color={theme.text} />
+            </Pressable>
 
             <TextInput
               value={newTags}
@@ -922,9 +922,15 @@ export default function ProfileScreen({ navigation }) {
               onChangeText={setNewCaption}
               placeholder="Caption…"
               placeholderTextColor={theme.textSecondary}
-              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
+              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text, marginBottom: 16 }]}
               editable={!uploading}
             />
+
+            {postError ? (
+              <Text style={{ color: "#ef4444", fontSize: 12, fontWeight: "900", textAlign: "center", marginBottom: 12 }}>
+                {postError}
+              </Text>
+            ) : null}
 
             <View style={styles.modalRow}>
               <Pressable
@@ -952,6 +958,56 @@ export default function ProfileScreen({ navigation }) {
             <Text style={[styles.hint, { color: theme.textSecondary }]}>
               Tip: tap a post to open • long-press to delete
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Category Dropdown for Add Post Modal */}
+      <Modal visible={newCategoryDropdownOpen} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setNewCategoryDropdownOpen(false)}>
+          <View style={styles.modalBackdrop} />
+        </TouchableWithoutFeedback>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border, width: '100%', maxHeight: 400 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={[styles.modalTitle, { color: theme.text, marginBottom: 0 }]}>Select Category</Text>
+              <Pressable onPress={() => setNewCategoryDropdownOpen(false)} hitSlop={8}>
+                <Feather name="x" size={20} color={theme.text} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {CATEGORIES.map((c) => {
+                const active = newCategory === c;
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => {
+                      setNewCategory(c);
+                      setNewCategoryDropdownOpen(false);
+                    }}
+                    style={{
+                      paddingVertical: 14,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.border,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        { color: theme.text, fontSize: 13 },
+                        active && { opacity: 1 },
+                      ]}
+                    >
+                      {c}
+                    </Text>
+                    {active && <Feather name="check" size={16} color={theme.text} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1004,6 +1060,75 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </Modal>
 
+      {/* Categories Dropdown Modal */}
+      <Modal visible={dropdownOpen} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setDropdownOpen(false)}>
+          <View style={styles.modalBackdrop} />
+        </TouchableWithoutFeedback>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border, width: '100%', maxHeight: 400 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={[styles.modalTitle, { color: theme.text, marginBottom: 0 }]}>Select Category</Text>
+              <Pressable onPress={() => setDropdownOpen(false)} hitSlop={8}>
+                <Feather name="x" size={20} color={theme.text} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {["All", ...CATEGORIES].map((c) => {
+                const active = activeCategoryFilter === c;
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => {
+                      setActiveCategoryFilter(c);
+                      setDropdownOpen(false);
+                    }}
+                    style={{
+                      paddingVertical: 14,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.border,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        { color: theme.text, fontSize: 13 },
+                        active && { opacity: 1 },
+                      ]}
+                    >
+                      {c}
+                    </Text>
+                    {active && <Feather name="check" size={16} color={theme.text} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal transparent visible={showSuccessModal} animationType="fade">
+        <BlurView intensity={60} tint="dark" style={styles.blurOverlay}>
+          <View style={styles.successCard}>
+            <Text style={styles.successText}>item posted sucessfully (,,&#62;ヮ&#60;,,)!</Text>
+          </View>
+        </BlurView>
+      </Modal>
+
+      <DeleteConfirmModal 
+        visible={deleteModalVisible}
+        onCancel={() => {
+          setDeleteModalVisible(false);
+          setPostToDelete(null);
+        }}
+        onConfirm={confirmDeletePost}
+        message="Are you sure you want to delete this post from your profile?"
+      />
+
       {/* Spacer + BottomNav like HomeScreen */}
       <View style={{ height: 0 }} />
       <BottomNav navigation={navigation} />
@@ -1012,6 +1137,24 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  blurOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successCard: {
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  successText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+
   screen: {
     flex: 1,
     backgroundColor: "#fff",

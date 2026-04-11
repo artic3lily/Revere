@@ -6,11 +6,14 @@ import { collection, onSnapshot, getDocs, doc, getDoc, deleteDoc } from 'firebas
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { registerListener } from '../services/listenerRegistry';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function WishlistScreen({ navigation }) {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   useEffect(() => {
     let unsub = null;
@@ -43,27 +46,22 @@ export default function WishlistScreen({ navigation }) {
   }, []);
 
   const remove = (postId) => {
-    Alert.alert(
-      "Remove Item",
-      "Are you sure you want to delete this item from your wishlist?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Yes, Delete", 
-          style: "destructive",
-          onPress: async () => {
-            const uid = auth.currentUser?.uid;
-            if (!uid) return;
-            try {
-              await deleteDoc(doc(db, 'users', uid, 'wishlist', postId));
-            } catch (e) {
-              console.log('Wishlist remove error', e);
-            }
-          }
-        }
-      ],
-      { cancelable: true }
-    );
+    setItemToDelete(postId);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    try {
+      await deleteDoc(doc(db, 'users', uid, 'wishlist', itemToDelete));
+    } catch (e) {
+      console.log('Wishlist remove error', e);
+    } finally {
+      setDeleteModalVisible(false);
+      setItemToDelete(null);
+    }
   };
 
   if (loading) return (<View style={[styles.loading, { backgroundColor: theme.bg }]}><ActivityIndicator /></View>);
@@ -109,6 +107,16 @@ export default function WishlistScreen({ navigation }) {
         )}
       />
       <BottomNav navigation={navigation} />
+      
+      <DeleteConfirmModal 
+        visible={deleteModalVisible}
+        onCancel={() => {
+          setDeleteModalVisible(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        message="Are you sure you want to delete this item from your wishlist?"
+      />
     </View>
   );
 }

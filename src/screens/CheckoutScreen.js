@@ -18,12 +18,11 @@ export default function CheckoutScreen({ route, navigation }) {
     address: ''
   });
 
-  const [paymentMethod, setPaymentMethod] = useState('cod'); // 'cod', 'esewa', 'khalti'
+  const [paymentMethod, setPaymentMethod] = useState('cod'); // 'cod', 'esewa'
   const [processing, setProcessing] = useState(false);
   
   // WebView States
   const [esewaHtml, setEsewaHtml] = useState(null);
-  const [khaltiUrl, setKhaltiUrl] = useState(null);
   
   const [activePaymentType, setActivePaymentType] = useState(null);
 
@@ -61,6 +60,9 @@ export default function CheckoutScreen({ route, navigation }) {
       items.forEach(item => {
         const cartRef = doc(db, 'users', uid, 'cart', item.id);
         batch.delete(cartRef);
+
+        const postRef = doc(db, 'posts', item.id);
+        batch.update(postRef, { sold: true });
       });
 
       const notifRef = doc(collection(db, 'notifications'));
@@ -68,8 +70,10 @@ export default function CheckoutScreen({ route, navigation }) {
         targetUserId: sellerId,
         type: 'order_received',
         title: 'New Order Received! 🛍️',
-        body: `${form.fullName} ordered ${items.length} item(s) via ${methodUsed.toUpperCase()}.`,
+        body: `${form.fullName} ordered ${items.length} item(s) via ${methodUsed.toUpperCase()}.\nTap the checkmark to confirm shipment!`,
         orderId: orderRef.id,
+        buyerId: uid,
+        isShipped: false,
         read: false,
         createdAt: serverTimestamp()
       });
@@ -86,7 +90,6 @@ export default function CheckoutScreen({ route, navigation }) {
     } finally {
       setProcessing(false);
       setEsewaHtml(null);
-      setKhaltiUrl(null);
       setActivePaymentType(null);
     }
   };
@@ -129,43 +132,7 @@ export default function CheckoutScreen({ route, navigation }) {
       return;
     }
 
-    if (paymentMethod === 'khalti') {
-      try {
-        setProcessing(true);
-        const res = await fetch('https://a.khalti.com/api/v2/epayment/initiate/', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Key 3ff3ad9730c44ec9becd4220b8f1cdd7', // Test Key
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            return_url: "https://revere-khalti.com",
-            website_url: "https://revere-khalti.com",
-            amount: total * 100, // Requires paisa
-            purchase_order_id: uuid,
-            purchase_order_name: "Revere Items",
-            customer_info: {
-              name: form.fullName,
-              email: "test@revere.com",
-              phone: form.phone.replace(/[^0-9]/g, '').slice(0,10).padStart(10, '9') || "9800000000"
-            }
-          })
-        });
-        const data = await res.json();
-        
-        if (data.payment_url) {
-          setKhaltiUrl(data.payment_url);
-          setActivePaymentType('khalti');
-        } else {
-          Alert.alert('Khalti Error', JSON.stringify(data));
-        }
-      } catch (e) {
-        Alert.alert('Khalti Request Failed', e?.message);
-      } finally {
-        setProcessing(false);
-      }
-      return;
-    }
+
 
     // Process COD Order
     processOrder('cod');
@@ -179,19 +146,6 @@ export default function CheckoutScreen({ route, navigation }) {
         Alert.alert('Payment Failed', 'eSewa transaction was cancelled.');
         setEsewaHtml(null);
         setActivePaymentType(null);
-      }
-    } else if (activePaymentType === 'khalti') {
-      if (navState.url.includes('revere-khalti.com')) {
-        // Technically Khalti appends ?pidx=...&status=Completed
-        if (navState.url.includes('status=Completed')) {
-          processOrder('khalti');
-        } else if (navState.url.includes('User%20canceled')) {
-          Alert.alert('Payment Cancelled', 'Khalti transaction cancelled.');
-          setKhaltiUrl(null);
-          setActivePaymentType(null);
-        } else {
-           processOrder('khalti'); // fallback success
-        }
       }
     }
   };
@@ -290,7 +244,6 @@ export default function CheckoutScreen({ route, navigation }) {
         
         <PaymentCard method="cod" label="Cash on Delivery (COD)" />
         <PaymentCard method="esewa" label="Pay with eSewa" />
-        <PaymentCard method="khalti" label="Pay with Khalti" />
 
       </ScrollView>
 
@@ -310,22 +263,15 @@ export default function CheckoutScreen({ route, navigation }) {
       {/* Payment WebView Modal */}
       <Modal visible={activePaymentType !== null} animationType="slide" transparent={false}>
          <View style={[styles.header, { backgroundColor: theme.header, paddingTop: 40, borderBottomWidth: 1, borderColor: '#eee' }]}>
-            <Pressable onPress={() => { setEsewaHtml(null); setKhaltiUrl(null); setActivePaymentType(null); }} style={{ padding: 8 }}>
+            <Pressable onPress={() => { setEsewaHtml(null); setActivePaymentType(null); }} style={{ padding: 8 }}>
               <Text style={{ fontSize: 16, fontWeight: '700', color: theme.primary || '#000' }}>Cancel</Text>
             </Pressable>
-            <Text style={{ fontSize: 16, fontWeight: '800' }}>{activePaymentType === 'esewa' ? 'eSewa Secure' : 'Khalti Secure'}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '800' }}>eSewa Secure</Text>
             <View style={{ width: 60 }} />
          </View>
          {activePaymentType === 'esewa' && esewaHtml && (
            <WebView 
              source={{ html: esewaHtml }} 
-             onNavigationStateChange={onNavigationStateChange} 
-             startInLoadingState={true}
-           />
-         )}
-         {activePaymentType === 'khalti' && khaltiUrl && (
-           <WebView 
-             source={{ uri: khaltiUrl }} 
              onNavigationStateChange={onNavigationStateChange} 
              startInLoadingState={true}
            />

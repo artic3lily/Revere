@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { auth, db } from "../config/firebase";
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, increment, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { useTheme } from "../context/ThemeContext";
 
 export default function PostDetailScreen({ route, navigation }) {
@@ -37,6 +37,11 @@ export default function PostDetailScreen({ route, navigation }) {
         const p = { id: pSnap.id, ...pSnap.data() };
         if (!mounted) return;
         setPost(p);
+
+        // increment views asynchronously
+        updateDoc(doc(db, "posts", postId), {
+          views: increment(1)
+        }).catch((e) => console.log("Failed to increment views:", e));
 
         if (p.ownerId) {
           const uSnap = await getDoc(doc(db, "users", p.ownerId));

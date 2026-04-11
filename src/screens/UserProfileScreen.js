@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  TouchableWithoutFeedback,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
@@ -33,6 +34,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  increment,
   addDoc,
 } from "firebase/firestore";
 import {
@@ -40,6 +42,10 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
+
+import { useTheme } from "../context/ThemeContext";
+
+const CATEGORIES = ["Grunge", "Casual", "Elegant", "Chic", "Y2k", "Vintage", "Minimalistic", "Street Wear", "Bohemian", "Sporty", "Cottage Core", "Preppy"];
 
 function formatJoined(ts) {
   try {
@@ -54,12 +60,17 @@ function formatJoined(ts) {
 export default function UserProfileScreen({ navigation, route }) {
   const currentUid = auth.currentUser?.uid;
   const userId = route?.params?.userId;
+  const { theme } = useTheme();
 
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
+
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState("All");
+  const [tagQuery, setTagQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -94,6 +105,21 @@ export default function UserProfileScreen({ navigation, route }) {
   const { width } = Dimensions.get("window");
   const gridGap = 8;
   const tileSize = Math.floor((width - 16 * 2 - gridGap * 2) / 3);
+
+  const filteredPosts = useMemo(() => {
+    let list = Array.isArray(posts) ? posts : [];
+    if (activeCategoryFilter !== "All") {
+      list = list.filter((p) => (p?.category || "").toLowerCase() === activeCategoryFilter.toLowerCase());
+    }
+    const q = tagQuery.trim().toLowerCase();
+    if (q.length > 0) {
+      list = list.filter((p) => {
+        const tags = Array.isArray(p?.tags) ? p.tags : [];
+        return tags.some((t) => String(t).toLowerCase().includes(q));
+      });
+    }
+    return list;
+  }, [posts, activeCategoryFilter, tagQuery]);
 
   useEffect(() => {
     if (!userId) return;
@@ -335,7 +361,7 @@ export default function UserProfileScreen({ navigation, route }) {
   const openPost = (p) => {
     setActivePost(p);
     setDetailOpen(true);
-    setTimeout(() => detailScrollRef.current?.scrollToOffset?.({ offset: 0, animated: false }), 0);
+    if (p?.id) { updateDoc(doc(db, "posts", p.id), { views: increment(1) }).catch(() => {}); } setTimeout(() => detailScrollRef.current?.scrollToOffset?.({ offset: 0, animated: false }), 0);
   };
 
   const closeDetail = () => {
@@ -507,13 +533,40 @@ export default function UserProfileScreen({ navigation, route }) {
 
       <Text style={styles.sectionTitle}>Posts</Text>
 
+      {/* Filters UI */}
+      <View style={styles.filtersWrap}>
+        <TextInput
+          value={tagQuery}
+          onChangeText={setTagQuery}
+          placeholder="Search tags… (e.g. denim, y2k)"
+          placeholderTextColor={theme?.textSecondary || "#666"}
+          style={[styles.filterInput, { backgroundColor: theme?.card || "#fff", borderColor: theme?.border || "#eee", color: theme?.text || "#111" }]}
+        />
+
+        <View style={[styles.filterChipsRow, { alignItems: 'center' }]}>
+          <Pressable
+            style={[styles.filterChip, { backgroundColor: theme?.card || "#fff", borderColor: theme?.border || "#eee", flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+            onPress={() => setDropdownOpen(true)}
+          >
+            <Text style={[styles.filterChipText, { color: theme?.text || "#111", opacity: 1 }]}>
+              Category: {activeCategoryFilter}
+            </Text>
+            <Feather name="chevron-down" size={14} color={theme?.text || "#111"} />
+          </Pressable>
+        </View>
+
+        <Text style={[styles.filterHint, { color: theme?.textSecondary || "#666" }]}>
+          Showing {filteredPosts.length} / {posts.length}
+        </Text>
+      </View>
+
       {loadingPosts ? (
         <View style={{ paddingTop: 20 }}>
           <ActivityIndicator />
         </View>
       ) : (
         <FlatList
-          data={posts}
+          data={filteredPosts}
           keyExtractor={(it) => it.id}
           renderItem={renderTile}
           numColumns={3}
@@ -685,6 +738,57 @@ export default function UserProfileScreen({ navigation, route }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Categories Dropdown Modal */}
+      <Modal visible={dropdownOpen} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setDropdownOpen(false)}>
+          <View style={styles.modalBackdrop} />
+        </TouchableWithoutFeedback>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={[styles.modalCard, { backgroundColor: theme?.card || "#fff", borderColor: theme?.border || "#eee", width: '100%', maxHeight: 400 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={[styles.modalTitle, { color: theme?.text || "#111", marginBottom: 0 }]}>Select Category</Text>
+              <Pressable onPress={() => setDropdownOpen(false)} hitSlop={8}>
+                <Feather name="x" size={20} color={theme?.text || "#111"} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {["All", ...CATEGORIES].map((c) => {
+                const active = activeCategoryFilter === c;
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => {
+                      setActiveCategoryFilter(c);
+                      setDropdownOpen(false);
+                    }}
+                    style={{
+                      paddingVertical: 14,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme?.border || "#eee",
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        { color: theme?.text || "#111", fontSize: 13 },
+                        active && { opacity: 1 },
+                      ]}
+                    >
+                      {c}
+                    </Text>
+                    {active && <Feather name="check" size={16} color={theme?.text || "#111"} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -1016,5 +1120,55 @@ const styles = StyleSheet.create({
     color: "#888",
     fontWeight: "700",
     marginBottom: 20,
+  },
+  // filter styles
+  filtersWrap: { marginTop: 12, marginBottom: 8 },
+  filterInput: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  filterChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
+  filterChip: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  filterHint: {
+    marginTop: 8,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  // Modals
+  modalBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  modalCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: "900",
   }
 });

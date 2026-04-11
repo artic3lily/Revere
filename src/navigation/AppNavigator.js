@@ -8,6 +8,7 @@ import { auth } from "../config/firebase";
 
 import LoginScreen from "../screens/auth/LoginScreen";
 import SignupScreen from "../screens/auth/SignupScreen";
+import VerifyEmailScreen from "../screens/auth/VerifyEmailScreen";
 import HomeScreen from "../screens/HomeScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SearchScreen from "../screens/SearchScreen";
@@ -27,7 +28,10 @@ import TryOnScreen from "../screens/TryOnScreen";
 import CheckoutScreen from "../screens/CheckoutScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import OrderDetailsScreen from "../screens/OrderDetailsScreen";
-
+import AllCategoriesScreen from "../screens/AllCategoriesScreen";
+import CategoryFeedScreen from "../screens/CategoryFeedScreen";
+import BannerFeedScreen from "../screens/BannerFeedScreen";
+import TrendingScreen from "../screens/TrendingScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -37,6 +41,23 @@ export default function AppNavigator() {
   const isInitialAppLoad = React.useRef(true);
   const currentUserUidRef = React.useRef(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Called by VerifyEmailScreen after the user clicks the link and we confirm verified
+  const handleVerified = async () => {
+    if (!auth.currentUser) return;
+    // Reset the UID ref so the full auth check (including emailVerified) runs again
+    currentUserUidRef.current = null;
+    await auth.currentUser.reload();
+    // Manually fire the check with the refreshed user
+    const u = auth.currentUser;
+    if (u?.emailVerified) {
+      const thresholdDate = new Date("2026-03-29T18:30:00Z");
+      u.isOldUser = new Date(u.metadata.creationTime) < thresholdDate;
+      setShowSuccessModal(true);
+      setUser({ ...u });
+      setTimeout(() => setShowSuccessModal(false), 2000);
+    }
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -75,7 +96,12 @@ export default function AppNavigator() {
         }
 
         //allowed
-        if (!isInitialAppLoad.current) {
+        const thresholdDate = new Date("2026-03-29T18:30:00Z");
+        const userCreationDate = new Date(u.metadata.creationTime);
+        const isOldUser = userCreationDate < thresholdDate;
+        u.isOldUser = isOldUser;
+
+        if (!isInitialAppLoad.current && (u.emailVerified || u.isOldUser)) {
           setShowSuccessModal(true);
           setUser(u);
           setLoading(false);
@@ -112,7 +138,16 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
+        {!user ? (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Signup" component={SignupScreen} />
+          </>
+        ) : (!user.emailVerified && !user.isOldUser) ? (
+          <Stack.Screen name="VerifyEmail">
+            {() => <VerifyEmailScreen onVerified={handleVerified} />}
+          </Stack.Screen>
+        ) : (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -130,11 +165,10 @@ export default function AppNavigator() {
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
+            <Stack.Screen name="CategoryFeed" component={CategoryFeedScreen} />
+            <Stack.Screen name="BannerFeed" component={BannerFeedScreen} />
+            <Stack.Screen name="Trending" component={TrendingScreen} />
           </>
         )}
       </Stack.Navigator>

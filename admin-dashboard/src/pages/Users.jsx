@@ -112,6 +112,16 @@ export default function Users() {
     run();
   }, []);
 
+  // Effect to automatically open a user detail modal if passed via navigation
+  useEffect(() => {
+    if (location.state?.openUserId && users.length > 0) {
+      const u = users.find(user => user.id === location.state.openUserId);
+      if (u) {
+        openDetails(u);
+      }
+    }
+  }, [location.state?.openUserId, users]);
+
   const filtered = useMemo(() => {
     let list = users;
     if (statusFilter !== "all") {

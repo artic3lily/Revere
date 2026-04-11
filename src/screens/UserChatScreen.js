@@ -10,9 +10,9 @@ import {
   Platform,
   Image,
   Modal,
-  TouchableWithoutFeedback,
-  Alert
+  TouchableWithoutFeedback
 } from "react-native";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { useTheme } from "../context/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import { auth, db } from "../config/firebase";
@@ -68,6 +68,7 @@ export default function UserChatScreen({ navigation, route }) {
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState(new Set());
   const [isDeletingMode, setIsDeletingMode] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
   const listRef = useRef(null);
 
@@ -226,27 +227,21 @@ export default function UserChatScreen({ navigation, route }) {
 
   const deleteSelected = async () => {
     if (selectedMessages.size === 0) return;
+    setDeleteModalVisible(true);
+  };
 
-    Alert.alert("Delete Messages?", "Are you sure you want to delete the selected messages?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Yes, Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-             // delete selected from firestore
-             for (const msgId of selectedMessages) {
-                await deleteDoc(doc(db, "threads", threadId, "messages", msgId));
-             }
-             setSelectedMessages(new Set());
-             setIsDeletingMode(false);
-          } catch (e) {
-             console.log("Delete error", e);
-             Alert.alert("Error", "Could not delete messages");
-          }
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    try {
+      for (const msgId of selectedMessages) {
+        await deleteDoc(doc(db, "threads", threadId, "messages", msgId));
+      }
+      setSelectedMessages(new Set());
+      setIsDeletingMode(false);
+    } catch (e) {
+      console.log("Delete error", e);
+    } finally {
+      setDeleteModalVisible(false);
+    }
   };
 
   return (
@@ -398,6 +393,13 @@ export default function UserChatScreen({ navigation, route }) {
           )}
         </KeyboardAvoidingView>
       </View>
+      
+      <DeleteConfirmModal 
+        visible={deleteModalVisible}
+        onCancel={() => setDeleteModalVisible(false)}
+        onConfirm={confirmDelete}
+        message="Are you sure you want to delete the selected messages?"
+      />
     </SafeAreaView>
   );
 }

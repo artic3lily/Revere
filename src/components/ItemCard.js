@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 
-export default function ItemCard({ title, price, image, onPress }) {
+export default function ItemCard({ title, price, image, sold, onPress }) {
   return (
     <Pressable
       onPress={onPress}
@@ -13,6 +13,12 @@ export default function ItemCard({ title, price, image, onPress }) {
         style={styles.image}
         resizeMode="cover"
       />
+      {sold && (
+        <View style={styles.soldOverlay}>
+          <Text style={styles.soldText}>Sold</Text>
+        </View>
+      )}
+
 
       <View style={styles.meta}>
         <Text style={styles.title} numberOfLines={1}>
@@ -40,6 +46,20 @@ const styles = StyleSheet.create({
     height: 140,
     width: "100%",
     backgroundColor: "#ededed",
+  },
+  soldOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    height: 140,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  soldText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: 2,
   },
   meta: {
     paddingHorizontal: 10,

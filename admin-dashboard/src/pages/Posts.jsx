@@ -3,8 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { collection, deleteDoc, doc, getDocs, limit, orderBy, query, collectionGroup } from "firebase/firestore";
 import { db } from "../firebase";
 import { formatDateTime } from "../utils/date";
+import { useLocation } from "react-router-dom";
 
 export default function Posts() {
+  const location = useLocation();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +32,16 @@ export default function Posts() {
     };
     run();
   }, []);
+
+  // Auto-open modal if navigated from top bar
+  useEffect(() => {
+    if (location.state?.openPostId && posts.length > 0) {
+      const p = posts.find(post => post.id === location.state.openPostId);
+      if (p) {
+        setSelected(p);
+      }
+    }
+  }, [location.state?.openPostId, posts]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -143,11 +155,16 @@ export default function Posts() {
               title="Open details"
               type="button"
             >
-              <div className="postThumbWrap">
+              <div className="postThumbWrap" style={{ position: "relative" }}>
                 {p.imageUrl ? (
                   <img className="postThumb" src={p.imageUrl} alt="post" loading="lazy" />
                 ) : (
                   <div className="postThumbPh">No image</div>
+                )}
+                {p.sold && (
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 10 }}>
+                    <span style={{ color: "#fff", fontSize: 20, fontWeight: 900, letterSpacing: 2 }}>Sold</span>
+                  </div>
                 )}
               </div>
 
@@ -223,6 +240,12 @@ export default function Posts() {
                       {Array.isArray(selected.tags) && selected.tags.length > 0
                         ? selected.tags.map((t) => `#${t}`).join(" ")
                         : "—"}
+                    </div>
+                  </div>
+                  <div className="kv">
+                    <div className="k">Status</div>
+                    <div className="v" style={{ fontWeight: 600, color: selected.sold ? "var(--primary, #000)" : "var(--text)" }}>
+                      {selected.sold ? "Sold" : "Available"}
                     </div>
                   </div>
                 </div>

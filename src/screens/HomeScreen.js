@@ -80,6 +80,10 @@ const bannerImages = [
 export default function HomeScreen({ navigation }) {
   const { theme, isDark, toggleTheme } = useTheme();
 
+  const mainScrollRef = useRef(null);
+  const latestRef = useRef(null);
+  const [latestY, setLatestY] = useState(0);
+
   const bannerRef = useRef(null);
   const [bannerIndex, setBannerIndex] = useState(0);
   const { width } = Dimensions.get("window");
@@ -87,6 +91,7 @@ export default function HomeScreen({ navigation }) {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [posts, setPosts] = useState([]);
+  const [trendingPosts, setTrendingPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [wishlist, setWishlist] = useState(new Set());
   const [unreadCount, setUnreadCount] = useState(0);
@@ -116,7 +121,20 @@ export default function HomeScreen({ navigation }) {
       }
     );
     registerListener(unsub);
-    return () => unsub();
+
+    // Fetch trending based on views
+    const qt = query(collection(db, "posts"), orderBy("views", "desc"), limit(4));
+    const unsubt = onSnapshot(qt, (snap) => {
+      setTrendingPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (e) => {
+      if (e?.code !== 'permission-denied') console.log('Trending snap error', e?.message);
+    });
+    registerListener(unsubt);
+
+    return () => {
+      unsub();
+      unsubt();
+    };
   }, []);
 
   useEffect(() => {
@@ -161,7 +179,11 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.bg }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView 
+        ref={mainScrollRef}
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.content}
+      >
 
         {/* Header */}
         <View style={styles.header}>
@@ -204,7 +226,7 @@ export default function HomeScreen({ navigation }) {
         {/* Categories */}
         <View style={styles.sectionRow}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Shop by Category</Text>
-          <Pressable>
+          <Pressable onPress={() => navigation.navigate('AllCategories')}>
             <Text style={[styles.link, { color: theme.text }]}>See all</Text>
           </Pressable>
         </View>
@@ -214,8 +236,13 @@ export default function HomeScreen({ navigation }) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.rowList}
         >
-          {categories.map((cat) => (
-            <CategoryCard key={cat.id} name={cat.name} image={cat.image} />
+          {categories.slice(0, 5).map((cat) => (
+            <CategoryCard
+              key={cat.id}
+              name={cat.name}
+              image={cat.image}
+              onPress={() => navigation.navigate('CategoryFeed', { categoryName: cat.name })}
+            />
           ))}
         </ScrollView>
 
@@ -241,7 +268,20 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.bannerTitle}>{b.title}</Text>
                   <Text style={styles.bannerSub}>{b.sub}</Text>
 
-                  <Pressable style={styles.bannerBtn}>
+                  <Pressable 
+                    style={styles.bannerBtn}
+                    onPress={() => {
+                      if (b.title === "New Drop") {
+                        mainScrollRef.current?.scrollTo({ y: latestY, animated: true });
+                      } else if (b.title === "Street Styles") {
+                        navigation.navigate("BannerFeed", { bannerTitle: b.title });
+                      } else if (b.title === "Vintage Picks") {
+                        navigation.navigate("CategoryFeed", { categoryName: "Vintage" });
+                      } else if (b.title === "Minimal Fits") {
+                        navigation.navigate("CategoryFeed", { categoryName: "Minimalistic" });
+                      }
+                    }}
+                  >
                     <Text style={styles.bannerBtnText}>Explore</Text>
                   </Pressable>
                 </View>
@@ -259,10 +299,10 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Items (UNCHANGED) */}
+        {/* Trending */}
         <View style={styles.sectionRow}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Trending</Text>
-          <Pressable>
+          <Pressable onPress={() => navigation.navigate("Trending")}>
             <Text style={[styles.link, { color: theme.text }]}>View more</Text>
           </Pressable>
         </View>
@@ -272,17 +312,26 @@ export default function HomeScreen({ navigation }) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.rowList}
         >
-          {items.map((item) => (
-            <ItemCard
-              key={item.id}
-              image={item.image}
-              title={item.title}
-              price={item.price}
-            />
-          ))}
+          {trendingPosts.length > 0 ? (
+            trendingPosts.map((item) => (
+              <ItemCard
+                key={item.id}
+                image={{ uri: item.tryOnWhiteUrl || item.imageUrl }}
+                title={item.caption || "Stylight Item"}
+                price={`Rs. ${item.price ?? '...'}`}
+                sold={item.sold}
+                onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
+              />
+            ))
+          ) : (
+            <Text style={{ marginVertical: 12, paddingHorizontal: 16, color: theme.textSecondary }}>Checking for trends...</Text>
+          )}
         </ScrollView>
         {/* Latest posts grid */}
-        <View style={styles.sectionRow}>
+        <View 
+          style={styles.sectionRow}
+          onLayout={(e) => setLatestY(e.nativeEvent.layout.y)}
+        >
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Latest</Text>
           <Pressable>
             <Text style={[styles.link, { color: theme.text }]}>See all</Text>
@@ -300,7 +349,14 @@ export default function HomeScreen({ navigation }) {
                 <Pressable
                   onPress={() => navigation.navigate('PostDetail', { postId: p.id })}
                 >
-                  <Image source={{ uri: p.tryOnWhiteUrl || p.imageUrl }} style={styles.gridImg} />
+                  <View style={{ position: 'relative' }}>
+                    <Image source={{ uri: p.tryOnWhiteUrl || p.imageUrl }} style={styles.gridImg} />
+                    {p.sold && (
+                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
+                        <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: 2 }}>Sold</Text>
+                      </View>
+                    )}
+                  </View>
                   <View style={[styles.gridMeta, { backgroundColor: theme.card }]}>
                     <Text numberOfLines={2} style={[styles.gridCaption, { color: theme.text }]}>{p.caption}</Text>
                     <Text style={[styles.gridPrice, { color: theme.textSecondary }]}>${p.price ?? ''}</Text>

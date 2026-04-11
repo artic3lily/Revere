@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, addDoc, collection } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 
 export default function SignupScreen({ navigation }) {
@@ -53,6 +53,23 @@ export default function SignupScreen({ navigation }) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
+      // Send a sweet welcome notification
+      await addDoc(collection(db, "notifications"), {
+        targetUserId: uid,
+        type: "welcome",
+        title: "Welcome to 𝓡𝓮𝓿𝓮𝓻𝓮! 🧡",
+        body: "You've just stepped into a space made for the ones who dress with intention. Revere is where style meets soul ฅ^ >ヮ<^₎ shop, share, and inspire. Your journey starts now. 🧡",
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      // Send the email verification right after saving the user data
+      await import("firebase/auth").then(({ sendEmailVerification }) => {
+        sendEmailVerification(cred.user);
+      });
+
+      Alert.alert("Verify Email", "We've sent a verification link to your email. You must verify it before logging in.");
     } catch (err) {
       console.log("SIGNUP ERROR CODE:", err?.code);
       console.log("SIGNUP ERROR MESSAGE:", err?.message);
@@ -154,7 +171,7 @@ function UnderlinePasswordInput({ onToggle, ...props }) {
         />
 
         <Pressable onPress={onToggle} style={styles.eyeBtn} hitSlop={10}>
-          <Feather name="eye" size={18} color="#111" />  
+          <Feather name={props.secureTextEntry ? "eye-off" : "eye"} size={18} color="#111" />  
         </Pressable>
       </View>
 
@@ -167,7 +184,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, paddingHorizontal: 22, paddingTop: 10 },
 
-  topRow: { alignItems: "flex-end", marginTop: 4 },
+  topRow: { alignItems: "flex-end", marginTop: 24 },
   brand: { fontSize: 14, color: "#111" },
 
   title: { fontSize: 44, fontWeight: "800", color: "#111", marginTop: 18 },

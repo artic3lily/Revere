@@ -80,7 +80,13 @@ service cloud.firestore {
 
       allow create: if okUser();
 
-      allow update, delete: if isAdmin()
+      allow update: if isAdmin()
+        || (okUser() && request.auth.uid == resource.data.ownerId)
+        || (okUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']))
+        || (okUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sold']))
+        || (okUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'sold']));
+
+      allow delete: if isAdmin()
         || (okUser() && request.auth.uid == resource.data.ownerId);
     }
 
@@ -160,6 +166,12 @@ service cloud.firestore {
     match /notifications/{notifId} {
       allow create: if okUser();
       allow read, update: if okUser() && request.auth.uid == resource.data.targetUserId;
+    }
+
+    // CONFIGURATION //
+    match /config/{configId} {
+      allow read: if okUser();
+      allow write: if isAdmin();
     }
 
     // default denyy

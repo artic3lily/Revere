@@ -1,0 +1,471 @@
+{
+  "/tryon": {
+    "parameters": [
+      {
+        "label": "Human. Mask with pen or use auto-masking",
+        "parameter_name": "dict",
+        "parameter_has_default": false,
+        "parameter_default": null,
+        "type": {
+          "$defs": {
+            "FileData": {
+              "properties": {
+                "path": {
+                  "title": "Path",
+                  "type": "string"
+                },
+                "url": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Url"
+                },
+                "size": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Size"
+                },
+                "orig_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Orig Name"
+                },
+                "mime_type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Mime Type"
+                },
+                "is_stream": {
+                  "default": false,
+                  "title": "Is Stream",
+                  "type": "boolean"
+                },
+                "meta": {
+                  "default": {
+                    "_type": "gradio.FileData"
+                  },
+                  "title": "Meta",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "title": "FileData",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "background": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FileData"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "layers": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/FileData"
+              },
+              "title": "Layers",
+              "type": "array"
+            },
+            "composite": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FileData"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "title": "EditorData",
+          "type": "object"
+        },
+        "python_type": {
+          "type": "Dict(background: filepath | None, layers: List[filepath], composite: filepath | None)",
+          "description": ""
+        },
+        "component": "Imageeditor",
+        "example_input": {
+          "background": {
+            "path": "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png",
+            "meta": {
+              "_type": "gradio.FileData"
+            },
+            "orig_name": "bus.png",
+            "url": "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png"
+          },
+          "layers": [],
+          "composite": null
+        }
+      },
+      {
+        "label": "Garment",
+        "parameter_name": "garm_img",
+        "parameter_has_default": false,
+        "parameter_default": null,
+        "type": {
+          "properties": {
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Url"
+            },
+            "size": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Size"
+            },
+            "orig_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Orig Name"
+            },
+            "mime_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Mime Type"
+            },
+            "is_stream": {
+              "default": false,
+              "title": "Is Stream",
+              "type": "boolean"
+            },
+            "meta": {
+              "default": {
+                "_type": "gradio.FileData"
+              },
+              "title": "Meta",
+              "type": "object"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "title": "FileData",
+          "type": "object"
+        },
+        "python_type": {
+          "type": "filepath",
+          "description": ""
+        },
+        "component": "Image",
+        "example_input": {
+          "path": "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png",
+          "meta": {
+            "_type": "gradio.FileData"
+          },
+          "orig_name": "bus.png",
+          "url": "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/bus.png"
+        }
+      },
+      {
+        "label": "parameter_17",
+        "parameter_name": "garment_des",
+        "parameter_has_default": false,
+        "parameter_default": null,
+        "type": {
+          "type": "string"
+        },
+        "python_type": {
+          "type": "str",
+          "description": ""
+        },
+        "component": "Textbox",
+        "example_input": "Hello!!"
+      },
+      {
+        "label": "Yes",
+        "parameter_name": "is_checked",
+        "parameter_has_default": true,
+        "parameter_default": true,
+        "type": {
+          "type": "boolean"
+        },
+        "python_type": {
+          "type": "bool",
+          "description": ""
+        },
+        "component": "Checkbox",
+        "example_input": true
+      },
+      {
+        "label": "Yes",
+        "parameter_name": "is_checked_crop",
+        "parameter_has_default": true,
+        "parameter_default": false,
+        "type": {
+          "type": "boolean"
+        },
+        "python_type": {
+          "type": "bool",
+          "description": ""
+        },
+        "component": "Checkbox",
+        "example_input": true
+      },
+      {
+        "label": "Denoising Steps",
+        "parameter_name": "denoise_steps",
+        "parameter_has_default": true,
+        "parameter_default": 30,
+        "type": {
+          "type": "number"
+        },
+        "python_type": {
+          "type": "float",
+          "description": ""
+        },
+        "component": "Number",
+        "example_input": 3
+      },
+      {
+        "label": "Seed",
+        "parameter_name": "seed",
+        "parameter_has_default": true,
+        "parameter_default": 42,
+        "type": {
+          "type": "number"
+        },
+        "python_type": {
+          "type": "float",
+          "description": ""
+        },
+        "component": "Number",
+        "example_input": 3
+      }
+    ],
+    "returns": [
+      {
+        "label": "Output",
+        "type": {
+          "properties": {
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Url"
+            },
+            "size": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Size"
+            },
+            "orig_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Orig Name"
+            },
+            "mime_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Mime Type"
+            },
+            "is_stream": {
+              "default": false,
+              "title": "Is Stream",
+              "type": "boolean"
+            },
+            "meta": {
+              "default": {
+                "_type": "gradio.FileData"
+              },
+              "title": "Meta",
+              "type": "object"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "title": "FileData",
+          "type": "object"
+        },
+        "python_type": {
+          "type": "filepath",
+          "description": ""
+        },
+        "component": "Image"
+      },
+      {
+        "label": "Masked image output",
+        "type": {
+          "properties": {
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Url"
+            },
+            "size": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Size"
+            },
+            "orig_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Orig Name"
+            },
+            "mime_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Mime Type"
+            },
+            "is_stream": {
+              "default": false,
+              "title": "Is Stream",
+              "type": "boolean"
+            },
+            "meta": {
+              "default": {
+                "_type": "gradio.FileData"
+              },
+              "title": "Meta",
+              "type": "object"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "title": "FileData",
+          "type": "object"
+        },
+        "python_type": {
+          "type": "filepath",
+          "description": ""
+        },
+        "component": "Image"
+      }
+    ]
+  }
+}

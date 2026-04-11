@@ -195,7 +195,7 @@ function UnderlinePasswordInput({ onToggle, ...props }) {
           selectionColor="#111"
         />
         <Pressable onPress={onToggle} style={styles.eyeBtn} hitSlop={10}>
-          <Feather name="eye" size={18} color="#111" />
+          <Feather name={props.secureTextEntry ? "eye-off" : "eye"} size={18} color="#111" />
         </Pressable>
       </View>
       <View style={styles.line} />
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, paddingHorizontal: 22, paddingTop: 10 },
 
-  topRow: { alignItems: "flex-end", marginTop: 4 },
+  topRow: { alignItems: "flex-end", marginTop: 24 },
   brand: { fontSize: 14, color: "#111" },
 
   title: { fontSize: 36, fontWeight: "800", color: "#111", marginTop: 22 },

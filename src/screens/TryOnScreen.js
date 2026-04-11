@@ -9,16 +9,38 @@ import {
   Alert,
   Dimensions,
   ScrollView,
+  Modal,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system/legacy";
-const FAL_KEY = "ebcbcd17-6b6e-4093-b344-bc64edd3591e:52775e23c3e5c4dc9934179e5bcafc15";
-import { auth, storage } from "../config/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { HF_TOKEN } from "@env";
+import { auth, db } from "../config/firebase";
+import { doc, getDoc } from "firebase/firestore";
+
+const HF_SPACE_URL = "https://yisol-idm-vton.hf.space";
+
+// Upload an image to the HuggingFace Space and return the file path
+const uploadToHFSpace = async (uri, token) => {
+  const formData = new FormData();
+  formData.append("files", { uri, name: "image.jpg", type: "image/jpeg" });
+  const uploadRes = await fetch(`${HF_SPACE_URL}/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text();
+    throw new Error(`HF Upload Failed (${uploadRes.status}): ${err}`);
+  }
+  const result = await uploadRes.json();
+  // Returns array of paths e.g. ["/tmp/gradio/xxx/image.jpg"]
+  return Array.isArray(result) ? result[0] : result;
+};
 
 const { width } = Dimensions.get("window");
 
@@ -28,6 +50,7 @@ export default function TryOnScreen({ route, navigation }) {
   const [bodyImage, setBodyImage] = useState(null);
   const [resultImage, setResultImage] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const pickBodyImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -78,97 +101,149 @@ export default function TryOnScreen({ route, navigation }) {
 
     setIsGenerating(true);
 
+    let tokens = [HF_TOKEN];
     try {
-      // 1. Upload the body image to Firebase Storage so Fal can access it
-      const response = await fetch(bodyImage.uri);
-      const blob = await response.blob();
-      const filename = `tryon_temp/${auth.currentUser?.uid || "guest"}_${Date.now()}.jpg`;
-      const storageRef = ref(storage, filename);
-      
-      await uploadBytes(storageRef, blob);
-      const bodyImageUrl = await getDownloadURL(storageRef);
-
-      console.log("SENDING REQUEST WITH FAL KEY:", FAL_KEY ? FAL_KEY.slice(0, 8) + "..." : "UNDEFINED");
-
-      // 2. Submit job to the Fal.ai asynchronous queue endpoint
-      const submitRes = await fetch("https://queue.fal.run/fal-ai/idm-vton", {
-        method: "POST",
-        headers: {
-          "Authorization": `Key ${FAL_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          human_image_url: bodyImageUrl,
-          garment_image_url: tryOnPngUrl,
-          category: "upper_body", 
-          description: "A piece of clothing", 
-          crop: false,
-          seed: Math.floor(Math.random() * 100000), 
-        }),
-      });
-
-      if (!submitRes.ok) {
-        const errText = await submitRes.text();
-        throw new Error(`Submission Failed (${submitRes.status}): ${errText}`);
+      const docSnap = await getDoc(doc(db, "config", "api_keys"));
+      if (docSnap.exists() && docSnap.data().hf_tokens) {
+         const dbTokens = docSnap.data().hf_tokens;
+         if (Array.isArray(dbTokens) && dbTokens.length > 0) {
+            tokens = dbTokens;
+         }
       }
+    } catch(err) {
+      console.log("Failed to fetch dynamic tokens", err);
+    }
 
-      const { request_id } = await submitRes.json();
-      if (!request_id) throw new Error("No request_id returned from Fal.ai");
+    let success = false;
+    let lastError = null;
 
-      // 3. Poll for the result
-      let generatedUrl = null;
-      let isCompleted = false;
+    for (let i = 0; i < tokens.length; i++) {
+      const currentToken = tokens[i];
+      try {
+        console.log(`Trying Token ${i + 1}/${tokens.length}...`);
+        
+        // 1. Upload both images to the HF Space in parallel
+        const [humanFilePath, garmentFilePath] = await Promise.all([
+          uploadToHFSpace(bodyImage.uri, currentToken),
+          uploadToHFSpace(tryOnPngUrl, currentToken),
+        ]);
 
-      while (!isCompleted) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before checking
-
-        const statusRes = await fetch(`https://queue.fal.run/fal-ai/idm-vton/requests/${request_id}/status`, {
+        // 2. Call the named /tryon endpoint directly (Gradio 4.x named API)
+        const callRes = await fetch(`${HF_SPACE_URL}/call/tryon`, {
+          method: "POST",
           headers: {
-            "Authorization": `Key ${FAL_KEY}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${currentToken}`,
           },
+          body: JSON.stringify({
+            data: [
+              {
+                background: { path: humanFilePath, meta: { _type: "gradio.FileData" } },
+                layers: [],
+                composite: null,
+              },
+              { path: garmentFilePath, meta: { _type: "gradio.FileData" } },
+              "A piece of clothing", // garment_des
+              true,  // is_checked (auto-masking)
+              true,  // is_checked_crop
+              30,    // denoise_steps
+              42,    // seed
+            ],
+          }),
         });
 
-        if (!statusRes.ok) {
-          const errText = await statusRes.text();
-          throw new Error(`Polling Failed (${statusRes.status}): ${errText}`);
+        if (!callRes.ok) {
+          const err = await callRes.text();
+          throw new Error(`Call Failed (${callRes.status}): ${err}`);
         }
 
-        const statusData = await statusRes.json();
-        
-        if (statusData.status === "COMPLETED") {
-          isCompleted = true;
-          console.log("Fal Generation Completed!", statusData);
+        const { event_id } = await callRes.json();
+        if (!event_id) throw new Error("No event_id returned from HuggingFace.");
 
-          // Fal queue system offloads heavy IDM-VTON results to a response_url
-          if (statusData.response_url) {
-             const finalRes = await fetch(statusData.response_url, {
-                headers: { "Authorization": `Key ${FAL_KEY}` }
-             });
-             const finalData = await finalRes.json();
-             console.log("Final Fetch Payload:", finalData);
-             
-             // Extract the physical image URL from the nested JSON
-             generatedUrl = finalData.image?.url || finalData.image_url || finalData.url;
-             
-          } else if (statusData.response) {
-             generatedUrl = statusData.response.image?.url || statusData.response.image_url;
-          }
-        } else if (statusData.status === "FAILED") {
-          throw new Error("Fal.ai processing failed on their backend servers.");
+        // 3. Stream the result via XHR SSE on the event endpoint
+        let generatedUrl = null;
+
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("GET", `${HF_SPACE_URL}/call/tryon/${event_id}`);
+          xhr.setRequestHeader("Authorization", `Bearer ${currentToken}`);
+
+          let lastIndex = 0;
+
+          const timeout = setTimeout(() => {
+            xhr.abort();
+            reject(new Error("Timed out after 5 minutes. The HF Space may be overloaded."));
+          }, 5 * 60 * 1000);
+
+          xhr.onprogress = () => {
+            const chunk = xhr.responseText.slice(lastIndex);
+            lastIndex = xhr.responseText.length;
+
+            const lines = chunk.split("\n");
+            for (const line of lines) {
+              if (line.startsWith("event: error")) {
+                clearTimeout(timeout);
+                reject(new Error("CPU/GPU Quota exceeded or Server Overloaded"));
+                xhr.abort();
+                return;
+              }
+              
+              if (!line.startsWith("data:")) continue;
+              try {
+                const data = JSON.parse(line.slice(5).trim());
+                if (Array.isArray(data) && data.length > 0) {
+                  const imgData = data[0];
+                  if (imgData && (imgData.url || imgData.path)) {
+                    generatedUrl = imgData.url || `${HF_SPACE_URL}/file=${imgData.path}`;
+                    clearTimeout(timeout);
+                    resolve();
+                    xhr.abort();
+                    return;
+                  }
+                }
+              } catch (_) {}
+            }
+          };
+
+          xhr.onload = () => {
+            clearTimeout(timeout);
+            if (!generatedUrl) reject(new Error("SSE stream ended without a result."));
+            else resolve();
+          };
+
+          xhr.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error("SSE connection error."));
+          };
+
+          xhr.send();
+        });
+
+        if (!generatedUrl) {
+          throw new Error("No image URL in result. Please try again.");
         }
-      }
 
-      if (generatedUrl) {
         setResultImage(generatedUrl);
-      } else {
-        throw new Error("The AI finished but did not return a valid image URL.");
+        success = true;
+        break; // Successfully generated, break loop!
+        
+      } catch (error) {
+        console.warn(`HuggingFace Try-On Error (Token ${i + 1}):`, error.message);
+        lastError = error;
+        // Wait 2.5 seconds before trying the next token to avoid IP spam ban!
+        await new Promise(resolve => setTimeout(resolve, 2500));
       }
-    } catch (error) {
-      console.error("Fal AI Fetch Error:", error);
-      Alert.alert("Generation Failed", "Could not generate the try-on. " + error.message);
-    } finally {
-      setIsGenerating(false);
     }
+
+    if (!success) {
+      console.error("All tokens failed. Last error:", lastError?.message);
+      Alert.alert(
+        "Generation Failed", 
+        "All AI servers are currently overloaded or out of daily limits. Please try again later."
+      );
+    }
+
+    setIsGenerating(false);
   };
 
   const shareImage = async () => {
@@ -212,7 +287,8 @@ export default function TryOnScreen({ route, navigation }) {
       const asset = await MediaLibrary.createAssetAsync(uri);
       
       if (asset) {
-        Alert.alert("Success!", "Your AI Try-On photo has been saved to your gallery!");
+        setShowSuccessModal(true);
+        setTimeout(() => setShowSuccessModal(false), 2500);
       } else {
         throw new Error("Failed to create media asset.");
       }
@@ -292,7 +368,8 @@ export default function TryOnScreen({ route, navigation }) {
             <View style={styles.generatingContainer}>
               <ActivityIndicator size="large" color="#000" />
               <Text style={styles.generatingText}>Fitting your clothes...</Text>
-              <Text style={styles.generatingSubText}>This takes about 10-15 seconds</Text>
+              <Text style={styles.generatingSubText}>This may take 1-2 minutes, please wait 
+                   ✧｡٩(ˊᗜˋ )و✧</Text>
             </View>
           ) : resultImage ? (
             <View style={styles.resultContainer}>
@@ -327,6 +404,14 @@ export default function TryOnScreen({ route, navigation }) {
         </View>
 
       </ScrollView>
+
+      <Modal transparent visible={showSuccessModal} animationType="fade">
+        <BlurView intensity={60} tint="dark" style={styles.blurOverlay}>
+          <View style={styles.successCard}>
+            <Text style={styles.successText}>Successfully saved to your gallery! (ᵔᗜᵔ)◜</Text>
+          </View>
+        </BlurView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -554,5 +639,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "400",
     textDecorationLine: "underline",
+  },
+  blurOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  successCard: {
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  successText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
   },
 });

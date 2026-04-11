@@ -6,12 +6,15 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
 import { registerListener } from '../services/listenerRegistry';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function CartScreen({ navigation }) {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   useEffect(() => {
     let unsub = null;
@@ -49,27 +52,22 @@ export default function CartScreen({ navigation }) {
   }, [items]);
 
   const remove = (postId) => {
-    Alert.alert(
-      "Remove Item",
-      "Are you sure you want to delete this item from your cart?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Yes, Delete", 
-          style: "destructive",
-          onPress: async () => {
-            const uid = auth.currentUser?.uid;
-            if (!uid) return;
-            try {
-              await deleteDoc(doc(db, 'users', uid, 'cart', postId));
-            } catch (e) {
-              console.log('Cart remove error', e);
-            }
-          }
-        }
-      ],
-      { cancelable: true }
-    );
+    setItemToDelete(postId);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    try {
+      await deleteDoc(doc(db, 'users', uid, 'cart', itemToDelete));
+    } catch (e) {
+      console.log('Cart remove error', e);
+    } finally {
+      setDeleteModalVisible(false);
+      setItemToDelete(null);
+    }
   };
 
   const Header = () => (
@@ -175,6 +173,16 @@ export default function CartScreen({ navigation }) {
         }
       />
       <BottomNav navigation={navigation} />
+      
+      <DeleteConfirmModal 
+        visible={deleteModalVisible}
+        onCancel={() => {
+          setDeleteModalVisible(false);
+          setItemToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        message="Are you sure you want to delete this item from your cart?"
+      />
     </View>
   );
 }

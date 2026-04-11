@@ -4,27 +4,62 @@ export const categories = [
   {
     id: 1,
     name: "Grunge",
-    image: { uri: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcReSl0l19wLCLDoVoHhNMuFfHwt7ExDSFIS8g&s" },
+    image: { uri: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600" },
   },
   {
     id: 2,
     name: "Casual",
-    image: { uri: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSmltZo1zlhhaiZriBUhCmrtuVlZdRMCXcITA&s" },
+    image: { uri: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600" },
   },
   {
     id: 3,
     name: "Elegant",
-    image: { uri: "https://www.creativefabrica.com/wp-content/uploads/2023/12/22/Elegant-Fonts-86871255-1-1-580x387.png" },
+    image: { uri: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600" },
   },
   {
     id: 4,
     name: "Chic",
-    image: { uri: "https://i.cdn.newsbytesapp.com/images/l63420251123150551.jpeg" },
+    image: { uri: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600" },
   },
   {
     id: 5,
     name: "Y2k",
-    image: { uri: "https://i.pinimg.com/736x/89/a9/50/89a950117852f84cf13cfaa38bb6ba60.jpg" },
+    image: { uri: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600" },
+  },
+  {
+    id: 6,
+    name: "Vintage",
+    image: { uri: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600" },
+  },
+  {
+    id: 7,
+    name: "Minimalistic",
+    image: { uri: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600" },
+  },
+  {
+    id: 8,
+    name: "Street Wear",
+    image: { uri: "https://images.unsplash.com/photo-1521334884684-d80222895322?w=600" },
+  },
+  {
+    id: 9,
+    name: "Bohemian",
+    image: { uri: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=600" },
+  },
+  {
+    id: 10,
+    name: "Sporty",
+    image: { uri: "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=600" },
+  },
+  {
+    id: 11,
+    name: "Cottage Core",
+    image: { uri: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600" },
+  },
+  {
+    id: 12,
+    name: "Preppy",
+    image: { uri: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600" },
   },
 ];
 

@@ -6,6 +6,7 @@ import { collection, onSnapshot, orderBy, query, where, doc, deleteDoc } from "f
 import { useTheme } from "../context/ThemeContext";
 import BottomNav from "../components/BottomNav";
 import { registerListener } from "../services/listenerRegistry";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
 
 export default function InboxScreen({ navigation }) {
   const { theme } = useTheme();
@@ -13,6 +14,9 @@ export default function InboxScreen({ navigation }) {
 
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [threadToDelete, setThreadToDelete] = useState(null);
 
   useEffect(() => {
     if (!uid) return;
@@ -44,26 +48,20 @@ export default function InboxScreen({ navigation }) {
   }, [uid]);
 
   const handleDeleteThread = (threadId, otherUsername) => {
-    Alert.alert(
-      "Delete Chat",
-      `Are you sure you want to delete your conversation with @${otherUsername}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive",
-          onPress: async () => {
-             try {
-               await deleteDoc(doc(db, "threads", threadId));
-             } catch (e) {
-               console.log("Delete thread error", e);
-               Alert.alert("Error", "Could not delete chat at this time.");
-             }
-          }
-        }
-      ],
-      { cancelable: true }
-    );
+    setThreadToDelete({ id: threadId, username: otherUsername });
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!threadToDelete) return;
+    try {
+      await deleteDoc(doc(db, "threads", threadToDelete.id));
+    } catch (e) {
+      console.log("Delete thread error", e);
+    } finally {
+      setDeleteModalVisible(false);
+      setThreadToDelete(null);
+    }
   };
 
   const renderItem = ({ item }) => {
@@ -149,6 +147,16 @@ export default function InboxScreen({ navigation }) {
         />
       )}
       <BottomNav navigation={navigation} />
+      
+      <DeleteConfirmModal 
+        visible={deleteModalVisible}
+        onCancel={() => {
+          setDeleteModalVisible(false);
+          setThreadToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        message={`Are you sure you want to delete your conversation${threadToDelete ? ' with @' + threadToDelete.username : ''}?`}
+      />
     </View>
   );
 }
