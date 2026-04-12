@@ -27,7 +27,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 
-const CATEGORIES = ["All", "Grunge", "Casual", "Elegant", "Chic", "Y2k"];
+const CATEGORIES = ["All", "Grunge", "Casual", "Elegant", "Chic", "Y2k", "Vintage", "Minimalistic", "Street Wear", "Bohemian", "Sporty"];
 
 function normalizeTerm(s) {
   return (s || "").trim().toLowerCase();
@@ -52,6 +52,7 @@ export default function SearchScreen({ navigation }) {
   // recent searches
   const [recentSearches, setRecentSearches] = useState([]);
   const [showRecentModal, setShowRecentModal] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   // Post detail modal
   const [detailOpen, setDetailOpen] = useState(false);
@@ -378,19 +379,43 @@ export default function SearchScreen({ navigation }) {
           <Text style={[styles.filterTitle, { color: theme.text }]}>Filters</Text>
 
           <Text style={[styles.smallLabel, { color: theme.text }]}>Category</Text>
-          <View style={styles.chipsRow}>
-            {CATEGORIES.map((c) => (
-              <Pressable
-                key={c}
-                onPress={() => setCategory(c)}
-                style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.card }, category === c && { borderColor: theme.text }]}
-              >
-                <Text style={[styles.chipText, { color: theme.text }, category === c && styles.chipTextActive]}>
-                  {c}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <Pressable
+            onPress={() => setShowCategoryDropdown(true)}
+            style={[styles.dropdownBtn, { borderColor: category !== "All" ? theme.text : theme.border, backgroundColor: theme.card }]}
+          >
+            <Text style={[styles.dropdownBtnText, { color: theme.text }]}>{category}</Text>
+            <Feather name="chevron-down" size={16} color={theme.icon} />
+          </Pressable>
+
+          {/* Category Dropdown Modal */}
+          <Modal
+            visible={showCategoryDropdown}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowCategoryDropdown(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => setShowCategoryDropdown(false)}>
+              <View style={styles.dropdownOverlay}>
+                <TouchableWithoutFeedback>
+                  <View style={[styles.dropdownMenu, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.dropdownMenuTitle, { color: theme.text }]}>Select Category</Text>
+                    {CATEGORIES.map((c) => (
+                      <Pressable
+                        key={c}
+                        onPress={() => { setCategory(c); setShowCategoryDropdown(false); }}
+                        style={[styles.dropdownItem, { borderColor: theme.border }, category === c && { backgroundColor: theme.bg }]}
+                      >
+                        <Text style={[styles.dropdownItemText, { color: theme.text }, category === c && { fontWeight: '900', opacity: 1 }]}>
+                          {c}
+                        </Text>
+                        {category === c && <Feather name="check" size={14} color={theme.text} />}
+                      </Pressable>
+                    ))}
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
 
           <Text style={[styles.smallLabel, { color: theme.text }]}>Tag</Text>
           <View style={[styles.tagInputRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
@@ -643,6 +668,50 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: "#111" },
   chipText: { fontSize: 12, fontWeight: "900", color: "#111", opacity: 0.75 },
   chipTextActive: { opacity: 1 },
+
+  dropdownBtn: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  dropdownBtnText: { fontSize: 13, fontWeight: "900", opacity: 0.85 },
+
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  dropdownMenu: {
+    width: "100%",
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  dropdownMenuTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    opacity: 0.6,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 14,
+    marginHorizontal: 6,
+  },
+  dropdownItemText: { fontSize: 14, fontWeight: "800", opacity: 0.75 },
 
   tagInputRow: {
     marginTop: 8,

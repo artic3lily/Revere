@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.expo/
+
+# Project configuration and distributions
+dist/
+web-build/
+
+# Backend & Web (Not required for Expo mobile builds)
+admin-dashboard/
+functions/
+firebase.json
+.firebaserc
+firestore.rules
+vercel.json
+
+# Test scripts and temporary/scratch files
+test-fal.js
+test-sdk.js
+hf_out.txt
+output.txt
+fal-response.json
+info.json
+
+# Environment variables
+# Note: You should configure secrets in the Expo EAS dashboard
+.env
+.env.local
+.env.*.local

@@ -125,7 +125,7 @@ export default function InboxScreen({ navigation }) {
   return (
     <View style={[styles.screen, { backgroundColor: theme.bg }]}>
       <View style={styles.topbar}>
-        <Text style={[styles.brand, { color: theme.text }]}>𝓡𝓮𝓿𝓮𝓻𝓮</Text>
+        <Text style={[styles.brand, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>𝓡𝓮𝓿𝓮𝓻𝓮</Text>
         <Text style={[styles.title, { color: theme.text }]}>Messages</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   title: { fontSize: 16, fontWeight: "900", color: "#111" },
-  brand: { fontSize: 14, fontWeight: "800", letterSpacing: 0.5 },
+  brand: { fontSize: 18, fontWeight: "800", letterSpacing: 0.5, width: 80 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   empty: { marginTop: 18, textAlign: "center", color: "#111", opacity: 0.55, fontWeight: "800" },
 
