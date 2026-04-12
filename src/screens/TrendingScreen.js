@@ -40,7 +40,8 @@ export default function TrendingScreen({ navigation }) {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const allPosts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setPosts(allPosts.filter((p) => !p.sold));
         setLoading(false);
       },
       (err) => {

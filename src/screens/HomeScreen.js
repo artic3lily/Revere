@@ -122,10 +122,12 @@ export default function HomeScreen({ navigation }) {
     );
     registerListener(unsub);
 
-    // Fetch trending based on views
-    const qt = query(collection(db, "posts"), orderBy("views", "desc"), limit(4));
+    // Fetch trending based on views (fetching extra to ensure we get 4 unsold)
+    const qt = query(collection(db, "posts"), orderBy("views", "desc"), limit(12));
     const unsubt = onSnapshot(qt, (snap) => {
-      setTrendingPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const allTrending = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const unsoldTrending = allTrending.filter(p => !p.sold).slice(0, 4);
+      setTrendingPosts(unsoldTrending);
     }, (e) => {
       if (e?.code !== 'permission-denied') console.log('Trending snap error', e?.message);
     });
