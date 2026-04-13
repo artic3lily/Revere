@@ -18,7 +18,7 @@ export default function Login() {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
       nav("/", { replace: true });
     } catch (e) {
-      setErr(e?.message || "Login failed.");
+      setErr("Your email or password is incorrect ( ˶•ᴖ•) !!");
     } finally {
       setBusy(false);
     }
