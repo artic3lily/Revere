@@ -81,13 +81,13 @@ service cloud.firestore {
       allow create: if okUser();
 
       allow update: if isAdmin()
-        || (okUser() && request.auth.uid == resource.data.ownerId)
         || (okUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']))
         || (okUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sold']))
-        || (okUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'sold']));
+        || (okUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'sold']))
+        || (okUser() && request.auth.uid == resource.data.ownerId && resource.data.get('sold', false) == false);
 
       allow delete: if isAdmin()
-        || (okUser() && request.auth.uid == resource.data.ownerId);
+        || (okUser() && request.auth.uid == resource.data.ownerId && resource.data.get('sold', false) == false);
     }
 
     // follow system

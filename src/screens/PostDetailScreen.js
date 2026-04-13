@@ -8,14 +8,75 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { auth, db } from "../config/firebase";
+import { auth, db, functions } from "../config/firebase";
 import { doc, getDoc, setDoc, updateDoc, increment, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { useTheme } from "../context/ThemeContext";
 
 export default function PostDetailScreen({ route, navigation }) {
   const { theme } = useTheme();
+  const [editModal, setEditModal] = useState(false);
+  const [editCaption, setEditCaption] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const openEdit = () => {
+    setEditCaption(post?.caption || "");
+    setEditPrice(post?.price != null ? String(post.price) : "");
+    setEditTags((post?.tags || []).join(", "));
+    setEditModal(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editCaption.trim()) return Alert.alert("Caption is required");
+    const priceNum = parseFloat(editPrice);
+    if (isNaN(priceNum) || priceNum < 0) return Alert.alert("Enter a valid price");
+    const tagsArr = editTags.split(",").map(t => t.trim()).filter(Boolean);
+    
+    try {
+      setSaving(true);
+      // Use secure Cloud Function for editing
+      const editPostFunction = httpsCallable(functions, "editPost");
+      await editPostFunction({
+        postId,
+        caption: editCaption.trim(),
+        price: priceNum,
+        tags: tagsArr,
+      });
+      
+      // Update local state
+      setPost(prev => ({ 
+        ...prev, 
+        caption: editCaption.trim(), 
+        price: priceNum, 
+        tags: tagsArr 
+      }));
+      setEditModal(false);
+      Alert.alert("Success", "Post updated successfully");
+    } catch (e) {
+      let errorMsg = e.message || "Failed to save";
+      
+      // Handle specific error cases
+      if (e.code === "failed-precondition") {
+        errorMsg = "Cannot edit sold items. Items can only be edited before they're sold.";
+      } else if (e.code === "permission-denied") {
+        errorMsg = "You can only edit your own posts";
+      } else if (e.code === "invalid-argument") {
+        errorMsg = errorMsg;
+      }
+      
+      Alert.alert("Failed to save", errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
   const { postId } = route.params || {};
 
   const [post, setPost] = useState(null);
@@ -108,6 +169,29 @@ export default function PostDetailScreen({ route, navigation }) {
     }
   };
 
+  const deletePost = async () => {
+    Alert.alert(
+      "Delete Post",
+      "Are you sure you want to delete this post? This action cannot be undone.",
+      [
+        { text: "Cancel", onPress: () => {} },
+        {
+          text: "Delete",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "posts", postId));
+              Alert.alert("Success", "Post deleted successfully");
+              navigation.goBack();
+            } catch (e) {
+              Alert.alert("Failed to delete", e.message);
+            }
+          },
+          style: "destructive"
+        }
+      ]
+    );
+  };
+
   if (loading) return (
     <View style={[styles.loading, { backgroundColor: theme.bg }]}><ActivityIndicator /></View>
   );
@@ -155,6 +239,25 @@ export default function PostDetailScreen({ route, navigation }) {
         </View>
 
         <Text style={[styles.caption, { color: theme.text }]}>{post.caption || 'No caption'}</Text>
+        
+        {/* ── Sold Status Badge ── */}
+        {post.sold && (
+          <View style={[styles.soldBadge, { backgroundColor: '#d32f2f' }]}>
+            <Feather name="check-circle" size={14} color="#fff" />
+            <Text style={styles.soldBadgeText}>Item Sold</Text>
+          </View>
+        )}
+        
+        {/* ── Owner Edit Notice ── */}
+        {post.ownerId === auth.currentUser?.uid && post.sold && (
+          <View style={[styles.editNotice, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Feather name="lock" size={14} color={theme.textSecondary} />
+            <Text style={[styles.editNoticeText, { color: theme.textSecondary }]}>
+              This item has been sold and can no longer be edited
+            </Text>
+          </View>
+        )}
+        
         {typeof post.price === 'number' && <Text style={[styles.price, { color: theme.textSecondary }]}>Rs. {post.price}</Text>}
 
         <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -165,7 +268,7 @@ export default function PostDetailScreen({ route, navigation }) {
 
         {post.ownerId !== auth.currentUser?.uid && (
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-            <Pressable style={[styles.cartBtn, { flex: 1, marginTop: 0 }, inCart && styles.cartBtnActive, inCart ? { backgroundColor: theme.buttonBg } : { borderColor: theme.text }]} onPress={toggleCart}>
+            <Pressable style={[styles.cartBtn, { flex: 1, marginTop: 0 }, inCart && styles.cartBtnActive, inCart ? { backgroundColor: theme.buttonBg } : { borderColor: theme.text, backgroundColor: theme.card }]} onPress={toggleCart}>
               <Text style={[styles.cartBtnText, inCart && styles.cartBtnTextActive, inCart ? { color: theme.buttonText } : { color: theme.text }]}>{inCart ? 'Remove from Cart' : 'Add to Cart'}</Text>
             </Pressable>
 
@@ -199,7 +302,97 @@ export default function PostDetailScreen({ route, navigation }) {
             </Pressable>
           </View>
         )}
+
+        {/* ── Owner Action Buttons ── */}
+        {post.ownerId === auth.currentUser?.uid && (
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, paddingBottom: 20 }}>
+            <Pressable 
+              onPress={openEdit}
+              disabled={post.sold}
+              style={[
+                styles.actionBtn, 
+                { 
+                  flex: 1, 
+                  backgroundColor: post.sold ? '#ccc' : theme.text,
+                  borderColor: theme.text 
+                }
+              ]}
+            >
+              <Feather name="edit-2" size={16} color={post.sold ? '#999' : theme.bg} />
+              <Text style={[styles.actionBtnText, { color: post.sold ? '#999' : theme.bg }]}>
+                Edit
+              </Text>
+            </Pressable>
+
+            <Pressable 
+              onPress={deletePost}
+              style={[
+                styles.actionBtn, 
+                { 
+                  flex: 1, 
+                  backgroundColor: '#d32f2f',
+                  borderColor: '#d32f2f'
+                }
+              ]}
+            >
+              <Feather name="trash-2" size={16} color="#fff" />
+              <Text style={[styles.actionBtnText, { color: '#fff' }]}>
+                Delete
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
+
+      {/* ── Edit Modal ── */}
+      <Modal visible={editModal} animationType="slide" transparent onRequestClose={() => setEditModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Post</Text>
+
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Caption</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+                value={editCaption}
+                onChangeText={setEditCaption}
+                multiline
+                numberOfLines={3}
+                placeholder="Caption..."
+                placeholderTextColor={theme.textSecondary}
+              />
+
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Price (Rs.)</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+                value={editPrice}
+                onChangeText={setEditPrice}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={theme.textSecondary}
+              />
+
+              <Text style={[styles.label, { color: theme.textSecondary }]}>Tags (comma separated)</Text>
+              <TextInput
+                style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+                value={editTags}
+                onChangeText={setEditTags}
+                placeholder="vintage, grunge, ..."
+                placeholderTextColor={theme.textSecondary}
+              />
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+                <Pressable onPress={() => setEditModal(false)} style={[styles.modalBtn, { flex: 1, borderColor: theme.border, backgroundColor: theme.bg }]}>
+                  <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={saveEdit} disabled={saving} style={[styles.modalBtn, { flex: 1, backgroundColor: theme.text, borderColor: theme.text }]}>
+                  <Text style={[styles.modalBtnText, { color: theme.bg }]}>{saving ? "Saving..." : "Save"}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -228,10 +421,27 @@ const styles = StyleSheet.create({
   tag: { borderWidth:1, borderColor:'#eee', borderRadius:999, paddingVertical:6, paddingHorizontal:10, marginRight:8, marginBottom:8 },
   tagText: { fontSize:12, fontWeight:'900', color:'#111', opacity:0.7 },
 
+  soldBadge: { marginTop: 10, marginBottom: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  soldBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
+  editNotice: { marginVertical: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  editNoticeText: { fontSize: 12, fontWeight: '600', flex: 1 },
+
   cartBtn: { marginTop:12, paddingVertical:12, paddingHorizontal:16, borderRadius:12, borderWidth:1, borderColor:'#111', backgroundColor:'#fff', alignItems:'center' },
   cartBtnActive: { backgroundColor:'#111' },
   cartBtnText: { fontWeight:'900', fontSize:13, color:'#111' },
   cartBtnTextActive: { color:'#fff' },
 
+  actionBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  actionBtnText: { fontWeight: '700', fontSize: 13, textAlign: 'center' },
+
   loading: { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#fff' },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, borderWidth: 1, paddingBottom: 36 },
+  modalTitle: { fontSize: 16, fontWeight: '900', marginBottom: 16 },
+  label: { fontSize: 12, fontWeight: '700', marginBottom: 4, marginTop: 10 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, fontWeight: '600' },
+  modalBtn: { paddingVertical: 13, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  modalBtnText: { fontSize: 13, fontWeight: '900' },
 });

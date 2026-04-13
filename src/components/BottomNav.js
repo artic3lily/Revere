@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Image, Pressable, Text } from "react-native";
+import { useNavigationState } from "@react-navigation/native";
 import { auth, db } from "../config/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
@@ -13,7 +14,14 @@ const messageImg = require("../../assets/images/message.png");
 const profileImg = require("../../assets/images/profile.png");
 
 export default function BottomNav({ navigation }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+  const currentRoute = useNavigationState((state) => state?.routes?.[state.index]?.name);
+
+  const activeColor = isDark ? "#fff" : "#111";
+  const inactiveColor = theme.icon;
+
+  const iconColor = (screen) => currentRoute === screen ? activeColor : inactiveColor;
+  const iconOpacity = (screen) => currentRoute === screen ? 1 : 0.45;
 
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
@@ -90,23 +98,25 @@ export default function BottomNav({ navigation }) {
     <View style={styles.wrap} pointerEvents="box-none">
       <View style={[styles.nav, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {/* HOME */}
-        <Pressable hitSlop={10} onPress={() => navigation.navigate("Home")}>
-          <Image style={[styles.icon, { tintColor: theme.icon }]} source={homeImg} />
+        <Pressable hitSlop={10} style={styles.tab} onPress={() => navigation.navigate("Home")}>
+          <Image style={[styles.icon, { tintColor: iconColor("Home"), opacity: iconOpacity("Home") }]} source={homeImg} />
+          {currentRoute === "Home" && <View style={[styles.dot, { backgroundColor: activeColor }]} />}
         </Pressable>
 
         {/* CART */}
-        <Pressable hitSlop={10} onPress={() => navigation.navigate("Cart")}>
-          <Image style={[styles.icon, { tintColor: theme.icon }]} source={cartImg} />
+        <Pressable hitSlop={10} style={styles.tab} onPress={() => navigation.navigate("Cart")}>
+          <Image style={[styles.icon, { tintColor: iconColor("Cart"), opacity: iconOpacity("Cart") }]} source={cartImg} />
           {cartCount > 0 && (
             <View style={[styles.badge, { backgroundColor: theme.badge }]}>
               <Text style={styles.badgeText}>{cartCount > 99 ? "99+" : String(cartCount)}</Text>
             </View>
           )}
+          {currentRoute === "Cart" && <View style={[styles.dot, { backgroundColor: activeColor }]} />}
         </Pressable>
 
         {/* WISHLIST */}
-        <Pressable hitSlop={10} onPress={() => navigation.navigate("Wishlist")}>
-          <Image style={[styles.icon, { tintColor: theme.icon }]} source={heartImg} />
+        <Pressable hitSlop={10} style={styles.tab} onPress={() => navigation.navigate("Wishlist")}>
+          <Image style={[styles.icon, { tintColor: iconColor("Wishlist"), opacity: iconOpacity("Wishlist") }]} source={heartImg} />
           {wishlistCount > 0 && (
             <View style={[styles.badge, { backgroundColor: theme.badge }]}>
               <Text style={styles.badgeText}>
@@ -114,11 +124,12 @@ export default function BottomNav({ navigation }) {
               </Text>
             </View>
           )}
+          {currentRoute === "Wishlist" && <View style={[styles.dot, { backgroundColor: activeColor }]} />}
         </Pressable>
 
         {/* MESSAGES */}
-        <Pressable hitSlop={10} onPress={() => navigation.navigate("Inbox")}>
-          <Image style={[styles.icon, { tintColor: theme.icon }]} source={messageImg} />
+        <Pressable hitSlop={10} style={styles.tab} onPress={() => navigation.navigate("Inbox")}>
+          <Image style={[styles.icon, { tintColor: iconColor("Inbox"), opacity: iconOpacity("Inbox") }]} source={messageImg} />
           {unreadChats > 0 && (
             <View style={[styles.badge, { backgroundColor: theme.badge }]}>
               <Text style={styles.badgeText}>
@@ -126,11 +137,13 @@ export default function BottomNav({ navigation }) {
               </Text>
             </View>
           )}
+          {currentRoute === "Inbox" && <View style={[styles.dot, { backgroundColor: activeColor }]} />}
         </Pressable>
 
         {/* PROFILE */}
-        <Pressable hitSlop={10} onPress={() => navigation.navigate("Profile")}>
-          <Image style={[styles.icon, { tintColor: theme.icon }]} source={profileImg} />
+        <Pressable hitSlop={10} style={styles.tab} onPress={() => navigation.navigate("Profile")}>
+          <Image style={[styles.icon, { tintColor: iconColor("Profile"), opacity: iconOpacity("Profile") }]} source={profileImg} />
+          {currentRoute === "Profile" && <View style={[styles.dot, { backgroundColor: activeColor }]} />}
         </Pressable>
       </View>
     </View>
@@ -161,11 +174,20 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  tab: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
   icon: {
     width: 24,
     height: 24,
     resizeMode: "contain",
-    opacity: 0.9,
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 99,
   },
   badge: {
     position: "absolute",
