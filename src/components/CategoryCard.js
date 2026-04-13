@@ -1,7 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { useTheme } from "../context/ThemeContext";
 
 export default function CategoryCard({ name, image, onPress, active = false }) {
+  const { theme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -9,20 +11,20 @@ export default function CategoryCard({ name, image, onPress, active = false }) {
       android_ripple={{ color: "#00000010" }}
     >
       <View style={[styles.iconBox, active && styles.iconBoxActive]}>
-        {image?.uri ? (
+        {image ? (
           <Image
             source={image}
             style={styles.image}
             resizeMode="cover"
-            onError={() => console.log("❌ Category image failed:", name, image?.uri)}
+            onError={() => console.log("❌ Category image failed:", name)}
           />
         ) : (
-          // img prop misinf
+          // img prop missing
           <Text style={styles.fallbackText}>{name?.[0] ?? "?"}</Text>
         )}
       </View>
 
-      <Text style={[styles.text, active && styles.textActive]} numberOfLines={1}>
+      <Text style={[styles.text, { color: theme.text }, active && styles.textActive]} numberOfLines={1}>
         {name}
       </Text>
     </Pressable>

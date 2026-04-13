@@ -59,13 +59,13 @@ const bannerImages = [
   },
   {
     id: 1,
-    image: { uri: "https://images.unsplash.com/photo-1521334884684-d80222895322?w=900" },
+    image: require("../../assets/images/ss.jpg"),
     title: "Street Styles",
     sub: "Trending this week",
   },
   {
     id: 2,
-    image: { uri: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=900" },
+    image: require("../../assets/images/vn.jpg"),
     title: "Vintage Picks",
     sub: "Retro never dies",
   },
@@ -219,7 +219,7 @@ export default function HomeScreen({ navigation }) {
               style={{ marginLeft: 16 }}
               onPress={() => navigation.navigate("Chatbot")}
             >
-              <Image source={kittyImg} style={{ width: 28, height: 28, resizeMode: "contain" }} />
+              <Image source={kittyImg} style={{ width: 28, height: 28, resizeMode: "contain", tintColor: theme.icon }} />
             </Pressable>
           </View>
         </View>
