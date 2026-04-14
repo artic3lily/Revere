@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,10 @@ import {
   sendPasswordResetEmail,
   signOut,
 } from "firebase/auth";
+import { Modal } from "react-native";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -24,6 +26,25 @@ export default function LoginScreen({ navigation }) {
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => {
+    loadRememberedEmail();
+  }, []);
+
+  const loadRememberedEmail = async () => {
+    try {
+      const savedEmail = await AsyncStorage.getItem("rememberedEmail");
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRemember(true);
+      }
+    } catch (e) {
+      console.log("Error loading remembered email:", e);
+    }
+  };
 
   const formatUntil = (ts) => {
     try {
@@ -37,9 +58,11 @@ export default function LoginScreen({ navigation }) {
 
   const onLogin = async () => {
     if (!email.trim() || !password) {
-      Alert.alert("Missing fields", "Please enter email and password.");
+      setError("Please enter both email and password.");
       return;
     }
+
+    setError("");
 
     try {
       setLoading(true);
@@ -52,6 +75,13 @@ export default function LoginScreen({ navigation }) {
         await signOut(auth);
         Alert.alert("Login failed", "Could not verify your account. Try again.");
         return;
+      }
+
+      // Handle "Remember me" logic
+      if (remember) {
+        await AsyncStorage.setItem("rememberedEmail", email.trim());
+      } else {
+        await AsyncStorage.removeItem("rememberedEmail");
       }
 
       // 2) Check Firestore user status
@@ -99,7 +129,8 @@ export default function LoginScreen({ navigation }) {
 
       //If active (or suspension expired), does ntg
     } catch (err) {
-      Alert.alert("Login failed", err?.message ?? "Invalid credentials");
+      console.log("Login error:", err?.code || err?.message);
+      setError("wrong email or password(ᵕ—ᴗ—), try again.");
     } finally {
       setLoading(false);
     }
@@ -112,9 +143,10 @@ export default function LoginScreen({ navigation }) {
     }
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      Alert.alert("Email sent", "Password reset email has been sent.");
+      setSuccessMsg("Password reset email has been sent. (˶ᵔ ᵕ ᵔ˶)");
+      setShowSuccess(true);
     } catch (err) {
-      Alert.alert("Error", err?.message ?? "Could not send reset email");
+      setError(err?.message ?? "Could not send reset email");
     }
   };
 
@@ -159,6 +191,8 @@ export default function LoginScreen({ navigation }) {
           </View>
         </View>
 
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
         <Pressable style={styles.btnOutline} onPress={onLogin} disabled={loading}>
           <Text style={styles.btnText}>{loading ? "Logging in..." : "Log In"}</Text>
         </Pressable>
@@ -170,6 +204,25 @@ export default function LoginScreen({ navigation }) {
           </Pressable>
         </View>
       </View>
+
+      {/* Success Modal */}
+      <Modal visible={showSuccess} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModal}>
+            <View style={styles.successIconCircle}>
+              <Feather name="check" size={28} color="#fff" />
+            </View>
+            <Text style={styles.successTitle}>Email Sent</Text>
+            <Text style={styles.successBody}>{successMsg}</Text>
+            <Pressable 
+              style={styles.doneButton}
+              onPress={() => setShowSuccess(false)}
+            >
+              <Text style={styles.doneButtonText}>Got it!</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -285,5 +338,63 @@ const styles = StyleSheet.create({
     color: "#111",
     fontWeight: "800",
     textDecorationLine: "underline",
+  },
+  errorText: {
+    color: "#ff3b30",
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 4,
+    marginTop: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  successModal: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#111",
+  },
+  successIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#111",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#111",
+    marginBottom: 8,
+  },
+  successBody: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#444",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  doneButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    backgroundColor: "#111",
+  },
+  doneButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

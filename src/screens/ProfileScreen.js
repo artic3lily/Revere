@@ -13,6 +13,8 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
@@ -105,6 +107,44 @@ export default function ProfileScreen({ navigation }) {
   const [activePost, setActivePost] = useState(null);
   const [ownerCache, setOwnerCache] = useState({}); // { [uid]: { photoURL, username, fullName } }
   const detailScrollRef = useRef(null);
+
+  // Edit within profile modal
+  const [editPostModal, setEditPostModal] = useState(false);
+  const [editCapt, setEditCapt] = useState("");
+  const [editPri, setEditPri] = useState("");
+  const [editTgs, setEditTgs] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const onOpenEdit = () => {
+    setEditCapt(activePost?.caption || "");
+    setEditPri(activePost?.price != null ? String(activePost.price) : "");
+    setEditTgs((activePost?.tags || []).join(", "));
+    setEditPostModal(true);
+  };
+
+  const onSaveEdit = async () => {
+    if (!editCapt.trim()) return Alert.alert("Caption is required");
+    const pNum = parseFloat(editPri);
+    if (isNaN(pNum) || pNum < 0) return Alert.alert("Enter a valid price");
+    const tArr = editTgs.split(",").map(t => t.trim()).filter(Boolean);
+    try {
+      setSavingEdit(true);
+      await updateDoc(doc(db, "posts", activePost.id), {
+        caption: editCapt.trim(),
+        price: pNum,
+        tags: tArr,
+      });
+      // Update local state in posts list
+      setPosts(prev => prev.map(p => p.id === activePost.id ? { ...p, caption: editCapt.trim(), price: pNum, tags: tArr } : p));
+      // Update active post
+      setActivePost(prev => ({ ...prev, caption: editCapt.trim(), price: pNum, tags: tArr }));
+      setEditPostModal(false);
+    } catch (e) {
+      Alert.alert("Error saving", e.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const ratingAvg = useMemo(() => {
     const avg = profile?.ratingAvg ?? 0;
@@ -584,42 +624,49 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       {/* Profile Card */}
-      <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        {/* Left: avatar */}
-        <Pressable onPress={onChangeProfilePhoto} style={styles.avatarWrap}>
-          {profile?.photoURL ? (
-            <Image source={{ uri: profile.photoURL }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: theme.placeholder }]}>
-              <Feather name="user" size={22} color={theme.icon} />
+      <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border, flexDirection: 'column' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+          {/* Left: avatar */}
+          <Pressable onPress={onChangeProfilePhoto} style={styles.avatarWrap}>
+            {profile?.photoURL ? (
+              <Image source={{ uri: profile.photoURL }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatarPlaceholder, { backgroundColor: theme.placeholder }]}>
+                <Feather name="user" size={22} color={theme.icon} />
+              </View>
+            )}
+            <View style={[styles.editBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Feather name="edit-2" size={12} color={theme.icon} />
             </View>
-          )}
-          <View style={[styles.editBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Feather name="edit-2" size={12} color={theme.icon} />
+          </Pressable>
+
+          {/* Middle: Name/User */}
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={[styles.name, { color: theme.text }]}>{profile?.fullName ?? "Your Name"}</Text>
+            <Text style={[styles.username, { color: theme.textSecondary }]}>@{profile?.username ?? "username"}</Text>
+            <Text style={[styles.joined, { color: theme.textSecondary }]} numberOfLines={1}>
+              {joinedText}
+            </Text>
           </View>
-        </Pressable>
 
-        {/* Middle */}
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: theme.text }]}>{profile?.fullName ?? "Your Name"}</Text>
-          <Text style={[styles.username, { color: theme.textSecondary }]}>@{profile?.username ?? "username"}</Text>
-
-          <Text style={[styles.joined, { color: theme.textSecondary }]} numberOfLines={1}>
-            {joinedText}
-          </Text>
-
-          <Text style={[styles.about, { color: theme.textSecondary }]} numberOfLines={2}>
-            {profile?.about?.trim()?.length
-              ? profile.about
-              : "Add a cute one-line bio ✨"}
-          </Text>
+          {/* Right: Edit Btn */}
+          <Pressable onPress={openEditProfile} style={[styles.editBtnRight, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <Feather name="edit-3" size={14} color={theme.icon} />
+            <Text style={[styles.editBtnRightText, { color: theme.text }]}>Edit</Text>
+          </Pressable>
         </View>
 
-        {/* Right */}
-        <Pressable onPress={openEditProfile} style={[styles.editBtnRight, { borderColor: theme.border, backgroundColor: theme.card }]}>
-          <Feather name="edit-3" size={14} color={theme.icon} />
-          <Text style={[styles.editBtnRightText, { color: theme.text }]}>Edit</Text>
-        </Pressable>
+        {/* Divider Line */}
+        <View style={{ height: 1.2, backgroundColor: isDark ? "#333" : "#dcdcdc", marginTop: 4, marginBottom: 0, width: '100%' }} />
+
+        {/* Bio Section - Now full width below */}
+        <View style={{ marginTop: 0 }}>
+          <Text style={[styles.about, { color: theme.textSecondary, fontStyle: 'italic', marginTop: 0 }]}>
+            {profile?.about?.trim()?.length
+              ? profile.about
+              : "Add bio"}
+          </Text>
+        </View>
       </View>
 
       {/* Follow stats */}
@@ -745,16 +792,27 @@ export default function ProfileScreen({ navigation }) {
               Post
             </Text>
 
-            {/* delete only own post */}
-            <View style={{ width: 40 }}>
+            {/* edit/delete own post */}
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
               {activePost?.ownerId === uid ? (
-                <Pressable
-                  onPress={() => onDeletePost(activePost)}
-                  hitSlop={12}
-                  style={[styles.trashBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
-                >
-                  <Feather name="trash-2" size={18} color={theme.icon} />
-                </Pressable>
+                <>
+                  {!activePost?.sold && (
+                    <Pressable
+                      onPress={onOpenEdit}
+                      hitSlop={12}
+                      style={[styles.backBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
+                    >
+                      <Feather name="edit-2" size={18} color={theme.icon} />
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={() => onDeletePost(activePost)}
+                    hitSlop={12}
+                    style={[styles.trashBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
+                  >
+                    <Feather name="trash-2" size={18} color={theme.icon} />
+                  </Pressable>
+                </>
               ) : null}
             </View>
           </View>
@@ -850,115 +908,261 @@ export default function ProfileScreen({ navigation }) {
             showsVerticalScrollIndicator={false}
           />
         </View>
+
+        {/* ── Sub-Modal for Editing ── */}
+        <Modal visible={editPostModal} animationType="fade" transparent onRequestClose={() => setEditPostModal(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+            <View style={styles.modalBackdrop}>
+              <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Details</Text>
+
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Caption</Text>
+                <TextInput
+                  style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+                  value={editCapt}
+                  onChangeText={setEditCapt}
+                  multiline
+                  placeholder="Caption..."
+                  placeholderTextColor={theme.textSecondary}
+                />
+
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Price (Rs.)</Text>
+                <TextInput
+                  style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+                  value={editPri}
+                  onChangeText={setEditPri}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textSecondary}
+                />
+
+                <Text style={[styles.label, { color: theme.textSecondary }]}>Tags (comma separated)</Text>
+                <TextInput
+                  style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+                  value={editTgs}
+                  onChangeText={setEditTgs}
+                  placeholder="vintage, y2k..."
+                  placeholderTextColor={theme.textSecondary}
+                />
+
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+                  <Pressable onPress={() => setEditPostModal(false)} style={[styles.modalBtn, { flex: 1, borderColor: theme.border, backgroundColor: theme.bg }]}>
+                    <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancel</Text>
+                  </Pressable>
+                  <Pressable onPress={onSaveEdit} disabled={savingEdit} style={[styles.modalBtn, { flex: 1, backgroundColor: theme.text, borderColor: theme.text }]}>
+                    <Text style={[styles.modalBtnText, { color: theme.bg }]}>{savingEdit ? "Saving..." : "Save"}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </Modal>
 
       {/* Add Post Modal */}
-      <Modal visible={modalOpen} transparent animationType="fade">
-        <TouchableWithoutFeedback
-          onPress={() => {
-            if (!uploading) setModalOpen(false);
-          }}
-        >
-          <View style={styles.modalBackdrop} />
-        </TouchableWithoutFeedback>
+      <Modal visible={modalOpen} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              if (!uploading) setModalOpen(false);
+            }}
+          >
+            <View style={{ flex: 1 }} />
+          </TouchableWithoutFeedback>
 
-        <View style={styles.modalWrap}>
-          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>New Post</Text>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+            <View style={{ 
+              backgroundColor: theme.card, 
+              borderTopLeftRadius: 30, 
+              borderTopRightRadius: 30,
+              paddingTop: 24,
+              paddingHorizontal: 20,
+              paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+              maxHeight: Dimensions.get('window').height * 0.9,
+              width: '100%',
+              borderWidth: 1,
+              borderColor: theme.border
+            }}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={{ fontSize: 20, fontWeight: "800", color: theme.text, marginBottom: 16 }}>New Post</Text>
 
-            <Pressable
-              style={[styles.pickBtn, { borderColor: theme.border, marginTop: 4 }]}
-              onPress={pickPostImage}
-              disabled={uploading}
-            >
-              <Text style={[styles.pickBtnText, { color: theme.text }]}>
-                {newImage ? "Change Photo" : "Pick Photo"}
-              </Text>
-            </Pressable>
+                <Pressable
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    backgroundColor: theme.card,
+                    marginBottom: 12
+                  }}
+                  onPress={pickPostImage}
+                  disabled={uploading}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: theme.text }}>
+                    {newImage ? "Change Photo" : "Pick Photo"}
+                  </Text>
+                </Pressable>
 
-            {newImage ? (
-              <Image source={{ uri: newImage }} style={styles.previewImg} />
-            ) : (
-              <View style={[styles.previewEmpty, { backgroundColor: theme.placeholder }]}>
-                <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
-                  No photo selected
+                {newImage ? (
+                  <Image source={{ uri: newImage }} style={{ width: '100%', height: 280, borderRadius: 16, marginBottom: 12 }} />
+                ) : (
+                  <View style={{ 
+                    width: '100%', 
+                    height: 280, 
+                    borderRadius: 16, 
+                    backgroundColor: isDark ? '#222' : '#f5f5f5', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    marginBottom: 12
+                  }}>
+                    <Text style={{ color: theme.textSecondary, fontSize: 14, fontWeight: '600' }}>
+                      No photo selected
+                    </Text>
+                  </View>
+                )}
+
+                <TextInput
+                  value={newPrice}
+                  onChangeText={setNewPrice}
+                  placeholder="Price (e.g. 1200)"
+                  placeholderTextColor={theme.textSecondary}
+                  keyboardType="numeric"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    fontSize: 14,
+                    backgroundColor: theme.bg,
+                    color: theme.text,
+                    marginBottom: 12
+                  }}
+                  editable={!uploading}
+                />
+
+                <Text style={{ fontSize: 13, fontWeight: "700", color: theme.text, marginBottom: 8, marginLeft: 4 }}>Category</Text>
+                <Pressable
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: theme.bg,
+                    marginBottom: 12
+                  }}
+                  onPress={() => setNewCategoryDropdownOpen(true)}
+                  disabled={uploading}
+                >
+                  <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>
+                    {newCategory || "Select Category"}
+                  </Text>
+                  <Feather name="chevron-down" size={16} color={theme.text} />
+                </Pressable>
+
+                <TextInput
+                  value={newTags}
+                  onChangeText={setNewTags}
+                  placeholder="Tags (comma separated) e.g. denim, y2k,"
+                  placeholderTextColor={theme.textSecondary}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    fontSize: 14,
+                    backgroundColor: theme.bg,
+                    color: theme.text,
+                    marginBottom: 12
+                  }}
+                  editable={!uploading}
+                />
+
+                <TextInput
+                  value={newCaption}
+                  onChangeText={setNewCaption}
+                  placeholder="Caption..."
+                  placeholderTextColor={theme.textSecondary}
+                  multiline
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    fontSize: 14,
+                    backgroundColor: theme.bg,
+                    color: theme.text,
+                    minHeight: 60,
+                    textAlignVertical: 'top',
+                    marginBottom: 20
+                  }}
+                  editable={!uploading}
+                />
+
+                {postError ? (
+                  <Text style={{ color: "#ef4444", fontSize: 12, fontWeight: "800", textAlign: "center", marginBottom: 12 }}>
+                    {postError}
+                  </Text>
+                ) : null}
+
+                <View style={{ flexDirection: 'row', gap: 12, marginBottom: 10 }}>
+                  <Pressable
+                    onPress={() => {
+                      if (uploading) return;
+                      setModalOpen(false);
+                    }}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 14,
+                      paddingVertical: 16,
+                      alignItems: 'center',
+                      backgroundColor: theme.card
+                    }}
+                    disabled={uploading}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: "800", color: theme.text }}>Cancel</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={onCreatePost}
+                    style={{
+                      flex: 1,
+                      backgroundColor: theme.text,
+                      borderRadius: 14,
+                      paddingVertical: 16,
+                      alignItems: 'center'
+                    }}
+                    disabled={uploading}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: "800", color: theme.bg }}>
+                      {uploading ? `Posting ${uploadPct}%` : "Post"}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <Text style={{ 
+                  fontSize: 11, 
+                  color: theme.textSecondary, 
+                  textAlign: 'center', 
+                  marginTop: 4,
+                  fontWeight: '600'
+                }}>
+                  Tip: tap a post to open • long-press to delete
                 </Text>
-              </View>
-            )}
-
-            <TextInput
-              value={newPrice}
-              onChangeText={setNewPrice}
-              placeholder="Price (e.g. 1200)"
-              placeholderTextColor={theme.textSecondary}
-              keyboardType="numeric"
-              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
-              editable={!uploading}
-            />
-
-            <Text style={[styles.smallLabel, { color: theme.text }]}>Category</Text>
-            <Pressable
-              style={[styles.filterChip, { backgroundColor: theme.card, borderColor: theme.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, marginTop: 8 }]}
-              onPress={() => setNewCategoryDropdownOpen(true)}
-              disabled={uploading}
-            >
-              <Text style={[styles.filterChipText, { color: theme.text, opacity: 1, fontSize: 13 }]}>
-                {newCategory || "Select Category"}
-              </Text>
-              <Feather name="chevron-down" size={16} color={theme.text} />
-            </Pressable>
-
-            <TextInput
-              value={newTags}
-              onChangeText={setNewTags}
-              placeholder="Tags (comma separated) e.g. denim, y2k, black"
-              placeholderTextColor={theme.textSecondary}
-              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
-              editable={!uploading}
-            />
-
-            <TextInput
-              value={newCaption}
-              onChangeText={setNewCaption}
-              placeholder="Caption…"
-              placeholderTextColor={theme.textSecondary}
-              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text, marginBottom: 16 }]}
-              editable={!uploading}
-            />
-
-            {postError ? (
-              <Text style={{ color: "#ef4444", fontSize: 12, fontWeight: "900", textAlign: "center", marginBottom: 12 }}>
-                {postError}
-              </Text>
-            ) : null}
-
-            <View style={styles.modalRow}>
-              <Pressable
-                onPress={() => {
-                  if (uploading) return;
-                  setModalOpen(false);
-                }}
-                style={[styles.modalBtn, styles.modalBtnGhost]}
-                disabled={uploading}
-              >
-                <Text style={styles.modalBtnGhostText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={onCreatePost}
-                style={styles.modalBtn}
-                disabled={uploading}
-              >
-                <Text style={styles.modalBtnText}>
-                  {uploading ? `Posting ${uploadPct}%` : "Post"}
-                </Text>
-              </Pressable>
+              </ScrollView>
             </View>
-
-            <Text style={[styles.hint, { color: theme.textSecondary }]}>
-              Tip: tap a post to open • long-press to delete
-            </Text>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -1014,49 +1218,72 @@ export default function ProfileScreen({ navigation }) {
 
       {/* Edit Profile Modal*/}
       <Modal visible={editOpen} transparent animationType="fade">
-        <TouchableWithoutFeedback onPress={() => setEditOpen(false)}>
-          <View style={styles.modalBackdrop} />
-        </TouchableWithoutFeedback>
+        <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+          <TouchableWithoutFeedback onPress={() => setEditOpen(false)}>
+            <View style={styles.modalBackdrop} />
+          </TouchableWithoutFeedback>
 
-        <View style={styles.modalWrap}>
-          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Profile</Text>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"} 
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            <View style={[styles.modalWrap, { justifyContent: 'center' }]}>
+              <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border, width: '100%', padding: 20 }]}>
+                <Text style={[styles.modalTitle, { color: theme.text, fontSize: 18, marginBottom: 15 }]}>Edit Profile</Text>
 
-            <TextInput
-              value={editFullName}
-              onChangeText={setEditFullName}
-              placeholder="Your real name"
-              placeholderTextColor={theme.textSecondary}
-              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
-              editable={!uploading}
-            />
-            <TextInput
-              value={editAbout}
-              onChangeText={setEditAbout}
-              placeholder="Bio / about you ✨"
-              placeholderTextColor={theme.textSecondary}
-              style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text }]}
-              editable={!uploading}
-            />
+                <TextInput
+                  value={editFullName}
+                  onChangeText={setEditFullName}
+                  placeholder="Your real name"
+                  placeholderTextColor={theme.textSecondary}
+                  style={[styles.captionInput, { borderColor: theme.border, backgroundColor: theme.bg, color: theme.text, paddingVertical: 12 }]}
+                  editable={!uploading}
+                />
+                
+                <View style={{ marginTop: 12 }}>
+                  <TextInput
+                    value={editAbout}
+                    onChangeText={setEditAbout}
+                    placeholder="Bio (Max 80 chars) ✨"
+                    placeholderTextColor={theme.textSecondary}
+                    maxLength={80}
+                    multiline
+                    style={[styles.captionInput, { 
+                      borderColor: theme.border, 
+                      backgroundColor: theme.bg, 
+                      color: theme.text, 
+                      marginTop: 0, 
+                      minHeight: 80, 
+                      textAlignVertical: 'top',
+                      paddingTop: 12
+                    }]}
+                    editable={!uploading}
+                  />
+                  <Text style={{ alignSelf: 'flex-end', fontSize: 11, fontWeight: '800', color: theme.textSecondary, marginTop: 6 }}>
+                    {editAbout.length}/80
+                  </Text>
+                </View>
 
-            <View style={styles.modalRow}>
-              <Pressable
-                onPress={() => setEditOpen(false)}
-                style={[styles.modalBtn, styles.modalBtnGhost]}
-                disabled={uploading}
-              >
-                <Text style={styles.modalBtnGhostText}>Cancel</Text>
-              </Pressable>
+                <View style={[styles.modalRow, { marginTop: 20, gap: 12 }]}>
+                  <Pressable
+                    onPress={() => setEditOpen(false)}
+                    style={[styles.modalBtn, styles.modalBtnGhost, { flex: 1, paddingVertical: 12, borderRadius: 12 }]}
+                    disabled={uploading}
+                  >
+                    <Text style={[styles.modalBtnGhostText, { fontSize: 12, fontWeight: '900' }]}>Cancel</Text>
+                  </Pressable>
 
-              <Pressable
-                onPress={saveProfileEdits}
-                style={styles.modalBtn}
-                disabled={uploading}
-              >
-                <Text style={styles.modalBtnText}>Save</Text>
-              </Pressable>
+                  <Pressable
+                    onPress={saveProfileEdits}
+                    style={[styles.modalBtn, { flex: 1, backgroundColor: theme.text, borderColor: theme.text, paddingVertical: 12, borderRadius: 12 }]}
+                    disabled={uploading}
+                  >
+                    <Text style={[styles.modalBtnText, { color: theme.bg, fontSize: 12, fontWeight: '900' }]}>Save</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -1236,11 +1463,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   about: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 4,
+    fontSize: 13,
     color: "#111",
     opacity: 0.85,
-    fontWeight: "800",
+    fontWeight: "700",
+    fontStyle: 'italic',
   },
 
   followRow: {
@@ -1558,12 +1786,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee",
   },
-  detailName: { fontSize: 13, fontWeight: "900", color: "#111" },
+  detailName: { fontSize: 13, fontWeight: "900" },
   detailUsername: {
     marginTop: 2,
     fontSize: 12,
     fontWeight: "800",
-    color: "#111",
     opacity: 0.6,
   },
 
@@ -1601,10 +1828,9 @@ const styles = StyleSheet.create({
   detailPillDarkText: { fontSize: 12, fontWeight: "900", color: "#fff" },
 
   detailCaption: {
-    marginTop: 12,
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#111",
+    marginTop: 20,
+    fontSize: 18,
+    fontWeight: "900",
     opacity: 0.9,
   },
 
@@ -1619,8 +1845,8 @@ const styles = StyleSheet.create({
   },
   tagChipText: {
     fontSize: 12,
-    fontWeight: "900",
-    color: "#111",
+    fontWeight: "700",
+    fontStyle: "italic",
     opacity: 0.7,
   },
   tagsEmpty: {
@@ -1630,4 +1856,11 @@ const styles = StyleSheet.create({
     color: "#111",
     opacity: 0.5,
   },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalCard: { borderRadius: 24, padding: 20, borderWidth: 1 },
+  modalTitle: { fontSize: 18, fontWeight: '900', marginBottom: 12 },
+  label: { fontSize: 12, fontWeight: '700', marginTop: 12, marginBottom: 4 },
+  input: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 13, fontWeight: '600' },
+  modalBtn: { paddingVertical: 14, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  modalBtnText: { fontSize: 13, fontWeight: '900' },
 });

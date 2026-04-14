@@ -18,6 +18,7 @@ import { auth, db, functions } from "../config/firebase";
 import { doc, getDoc, setDoc, updateDoc, increment, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { useTheme } from "../context/ThemeContext";
+import BottomNav from "../components/BottomNav";
 
 export default function PostDetailScreen({ route, navigation }) {
   const { theme } = useTheme();
@@ -98,6 +99,15 @@ export default function PostDetailScreen({ route, navigation }) {
         const p = { id: pSnap.id, ...pSnap.data() };
         if (!mounted) return;
         setPost(p);
+
+        // DEBUG
+        console.log('POST LOADED:', {
+          postId: p.id,
+          ownerId: p.ownerId,
+          currentUserId: auth.currentUser?.uid,
+          isOwner: p.ownerId === auth.currentUser?.uid,
+          sold: p.sold
+        });
 
         // increment views asynchronously
         updateDoc(doc(db, "posts", postId), {
@@ -207,7 +217,13 @@ export default function PostDetailScreen({ route, navigation }) {
           <Feather name="arrow-left" size={20} color={theme.text} />
         </Pressable>
         <Text style={[styles.title, { color: theme.text }]}>Item</Text>
-        <View style={{ width: 40 }} />
+        {post?.ownerId === auth.currentUser?.uid && !post?.sold ? (
+          <Pressable onPress={openEdit} style={[styles.iconBtn, { borderColor: theme.border, backgroundColor: theme.card }]} hitSlop={12}>
+            <Feather name="edit-2" size={18} color={theme.text} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -228,19 +244,19 @@ export default function PostDetailScreen({ route, navigation }) {
           </View>
         </Pressable>
 
-        <View style={[styles.imgWrap, { backgroundColor: theme.placeholder, borderColor: theme.border }]}>
+        <View style={[styles.imgWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Image source={{ uri: post.tryOnWhiteUrl || post.imageUrl }} style={styles.image} />
-
-          <View style={styles.heartWrap} pointerEvents="box-none">
-            <Pressable style={[styles.heartBtn, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={toggleSaved} hitSlop={10}>
-              <Feather name="heart" size={22} color={saved ? 'red' : theme.icon} />
+          <View style={styles.heartWrap}>
+            <Pressable onPress={toggleSaved} style={[styles.heartBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Feather name="heart" size={22} color={saved ? "#ef5350" : theme.text} />
             </Pressable>
           </View>
         </View>
 
         <Text style={[styles.caption, { color: theme.text }]}>{post.caption || 'No caption'}</Text>
+        <Text style={[styles.price, { color: theme.text }]}>Size: {post.size || 'N/A'} • {post.category}</Text>
+        <Text style={[styles.price, { color: theme.text, fontSize: 20, marginTop: 10 }]}>Rs. {post.price}</Text>
         
-        {/* ── Sold Status Badge ── */}
         {post.sold && (
           <View style={[styles.soldBadge, { backgroundColor: '#d32f2f' }]}>
             <Feather name="check-circle" size={14} color="#fff" />
@@ -248,7 +264,6 @@ export default function PostDetailScreen({ route, navigation }) {
           </View>
         )}
         
-        {/* ── Owner Edit Notice ── */}
         {post.ownerId === auth.currentUser?.uid && post.sold && (
           <View style={[styles.editNotice, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Feather name="lock" size={14} color={theme.textSecondary} />
@@ -258,20 +273,19 @@ export default function PostDetailScreen({ route, navigation }) {
           </View>
         )}
         
-        {typeof post.price === 'number' && <Text style={[styles.price, { color: theme.textSecondary }]}>Rs. {post.price}</Text>}
-
-        <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {(post.tags || []).slice(0,12).map((t) => (
-            <View key={t} style={[styles.tag, { borderColor: theme.border, backgroundColor: theme.card }]}><Text style={[styles.tagText, { color: theme.textSecondary }]}>#{t}</Text></View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 15 }}>
+          {(post.tags || []).map((t) => (
+            <View key={t} style={[styles.tag, { borderColor: theme.border, backgroundColor: theme.card }]}>
+              <Text style={[styles.tagText, { color: theme.text }]}>#{t}</Text>
+            </View>
           ))}
         </View>
 
-        {post.ownerId !== auth.currentUser?.uid && (
+        {post.ownerId !== auth.currentUser?.uid && !post.sold && (
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
             <Pressable style={[styles.cartBtn, { flex: 1, marginTop: 0 }, inCart && styles.cartBtnActive, inCart ? { backgroundColor: theme.buttonBg } : { borderColor: theme.text, backgroundColor: theme.card }]} onPress={toggleCart}>
               <Text style={[styles.cartBtnText, inCart && styles.cartBtnTextActive, inCart ? { color: theme.buttonText } : { color: theme.text }]}>{inCart ? 'Remove from Cart' : 'Add to Cart'}</Text>
             </Pressable>
-
             <Pressable
               onPress={() => {
                 const tryOnImg = post.tryOnWhiteUrl || post.imageUrl;
@@ -279,22 +293,10 @@ export default function PostDetailScreen({ route, navigation }) {
                   Alert.alert("Not Available", "This post does not have an image to try on.");
                   return;
                 }
-                navigation.navigate("TryOn", {
-                  postId: post.id,
-                  tryOnPngUrl: tryOnImg, // Keep param name same for TryOnScreen
-                });
+                navigation.navigate("TryOn", { postId: post.id, tryOnPngUrl: tryOnImg });
               }}
               disabled={post.tryOnStatus === "processing"}
-              style={[
-                styles.cartBtn, 
-                { 
-                  flex: 1, 
-                  marginTop: 0, 
-                  backgroundColor: theme.text, 
-                  borderColor: theme.text,
-                  opacity: post.tryOnStatus === "processing" ? 0.5 : 1
-                }
-              ]}
+              style={[styles.cartBtn, { flex: 1, marginTop: 0, backgroundColor: theme.text, borderColor: theme.text, opacity: post.tryOnStatus === "processing" ? 0.5 : 1 }]}
             >
               <Text style={[styles.cartBtnText, { color: theme.bg, textAlign: "center" }]}>
                 {post.tryOnStatus === "processing" ? "Preparing Try-On..." : "Try On"}
@@ -303,20 +305,12 @@ export default function PostDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* ── Owner Action Buttons ── */}
         {post.ownerId === auth.currentUser?.uid && (
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, paddingBottom: 20 }}>
             <Pressable 
               onPress={openEdit}
               disabled={post.sold}
-              style={[
-                styles.actionBtn, 
-                { 
-                  flex: 1, 
-                  backgroundColor: post.sold ? '#ccc' : theme.text,
-                  borderColor: theme.text 
-                }
-              ]}
+              style={[styles.actionBtn, { flex: 1, backgroundColor: post.sold ? '#ccc' : theme.text, borderColor: theme.text }]}
             >
               <Feather name="edit-2" size={16} color={post.sold ? '#999' : theme.bg} />
               <Text style={[styles.actionBtnText, { color: post.sold ? '#999' : theme.bg }]}>
@@ -393,6 +387,7 @@ export default function PostDetailScreen({ route, navigation }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <BottomNav navigation={navigation} />
     </View>
   );
 }
@@ -406,20 +401,20 @@ const styles = StyleSheet.create({
   userRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   avatar: { width: 44, height: 44, borderRadius: 12 },
   avatarPh: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#f2f2f2', alignItems: 'center', justifyContent: 'center', borderWidth:1, borderColor:'#eee' },
-  name: { fontSize: 14, fontWeight: '900', color: '#111' },
-  username: { marginTop: 2, fontSize: 12, color: '#111', opacity: 0.6 },
+  name: { fontSize: 14, fontWeight: '900' },
+  username: { marginTop: 2, fontSize: 12, opacity: 0.6 },
 
   imgWrap: { borderRadius: 14, overflow: 'hidden', borderWidth:1, borderColor:'#eee', backgroundColor:'#f2f2f2' },
   image: { width: '100%', height: 320, resizeMode: 'cover' },
 
-  caption: { marginTop: 12, fontSize: 13, fontWeight: '800', color: '#111' },
-  price: { marginTop: 8, fontSize: 13, fontWeight: '700', color: '#444' },
+  caption: { marginTop: 20, fontSize: 18, fontWeight: '900' },
+  price: { marginTop: 8, fontSize: 13, fontWeight: '700' },
 
   heartWrap: { position: 'absolute', top: 10, right: 10, zIndex: 3 },
   heartBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.95)', borderWidth:1, borderColor:'#eee' },
 
   tag: { borderWidth:1, borderColor:'#eee', borderRadius:999, paddingVertical:6, paddingHorizontal:10, marginRight:8, marginBottom:8 },
-  tagText: { fontSize:12, fontWeight:'900', color:'#111', opacity:0.7 },
+  tagText: { fontSize:12, fontWeight:'700', fontStyle: 'italic', color:'#111', opacity:0.7 },
 
   soldBadge: { marginTop: 10, marginBottom: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
   soldBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },

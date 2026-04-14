@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
   TouchableWithoutFeedback,
+  RefreshControl,
 } from "react-native";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../config/firebase";
@@ -95,6 +96,8 @@ export default function HomeScreen({ navigation }) {
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [wishlist, setWishlist] = useState(new Set());
   const [unreadCount, setUnreadCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (!auth.currentUser?.uid) return;
@@ -139,6 +142,39 @@ export default function HomeScreen({ navigation }) {
     };
   }, []);
 
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Re-fetch wishlist
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        const wishlistSnap = await getDocs(collection(db, "users", uid, "wishlist"));
+        setWishlist(new Set(wishlistSnap.docs.map((d) => d.id)));
+      }
+
+      // Simulate a small delay for UX if data is already real-time
+      // or we can just hope the onSnapshot updates things if they changed.
+      // But actually, we already have listeners.
+      // To truly "reload" we could re-run the queries once with getDocs 
+      // to ensure we have the absolute latest if listeners were latent.
+      
+      const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(60));
+      const snap = await getDocs(q);
+      setPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+      const qt = query(collection(db, "posts"), orderBy("views", "desc"), limit(12));
+      const snapt = await getDocs(qt);
+      const allTrending = snapt.docs.map(d => ({ id: d.id, ...d.data() }));
+      const unsoldTrending = allTrending.filter(p => !p.sold).slice(0, 4);
+      setTrendingPosts(unsoldTrending);
+
+    } catch (error) {
+      console.error("Error refreshing feed:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useEffect(() => {
     const loadWishlist = async () => {
       const uid = auth.currentUser?.uid;
@@ -163,20 +199,15 @@ export default function HomeScreen({ navigation }) {
   };
 
   const confirmLogout = () => {
-    Alert.alert("Logout?", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          setDrawerOpen(false);
-          // Unsubscribe ALL active Firestore listeners BEFORE signing out
-          // so they don't fire a permission-denied error after auth clears.
-          unsubscribeAll();
-          await signOut(auth);
-        },
-      },
-    ]);
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogout = async () => {
+    setShowLogoutConfirm(false);
+    setDrawerOpen(false);
+    // Unsubscribe ALL active Firestore listeners BEFORE signing out
+    unsubscribeAll();
+    await signOut(auth);
   };
 
   return (
@@ -185,6 +216,14 @@ export default function HomeScreen({ navigation }) {
         ref={mainScrollRef}
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.icon}
+            colors={[theme.icon]}
+          />
+        }
       >
 
         {/* Header */}
@@ -417,6 +456,37 @@ export default function HomeScreen({ navigation }) {
           </Pressable>
 
           <Text style={[styles.drawerFooter, { color: theme.textSecondary }]}>Revere © 2026</Text>
+        </View>
+      </Modal>
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={showLogoutConfirm} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.customModal, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={[styles.modalIconCircle, { backgroundColor: theme.text }]}>
+              <Feather name="log-out" size={24} color={theme.card} />
+            </View>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Logout?</Text>
+            <Text style={[styles.modalBody, { color: theme.text, opacity: 0.8 }]}>
+              ₍^. .^₎⟆ Are you sure want to logout?
+            </Text>
+            
+            <View style={styles.modalButtonsRow}>
+              <Pressable 
+                style={[styles.modalBtn, { backgroundColor: theme.border }]} 
+                onPress={() => setShowLogoutConfirm(false)}
+              >
+                <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancel</Text>
+              </Pressable>
+              
+              <Pressable 
+                style={[styles.modalBtn, { backgroundColor: "#ff3b30" }]} 
+                onPress={handleLogout}
+              >
+                <Text style={[styles.modalBtnText, { color: "#fff" }]}>Logout</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -694,5 +764,55 @@ const styles = StyleSheet.create({
   themeBtnTextActive: {
     color: '#fff',
     fontWeight: '900',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  customModal: {
+    width: "100%",
+    borderRadius: 28,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1.5,
+  },
+  modalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+  modalBody: {
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButtonsRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnText: {
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

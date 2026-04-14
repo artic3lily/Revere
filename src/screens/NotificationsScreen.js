@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Modal, Image, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { auth, db } from '../config/firebase';
+import { auth, db, functions } from '../config/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 export default function NotificationsScreen({ navigation }) {
   const { theme } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedNotif, setSelectedNotif] = useState(null);
+  const [confirmingIds, setConfirmingIds] = useState([]);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -33,31 +36,40 @@ export default function NotificationsScreen({ navigation }) {
   }, []);
 
   const confirmShipment = async (notif) => {
+    if (confirmingIds.includes(notif.id)) return;
+
     try {
-      const batch = writeBatch(db);
-      
-      batch.update(doc(db, 'notifications', notif.id), { isShipped: true });
-      
-      if (notif.orderId) {
-        batch.update(doc(db, 'orders', notif.orderId), { status: 'shipped' });
-      }
+      setConfirmingIds(prev => [...prev, notif.id]);
+      console.log('--- Confirming Shipment ---');
+      console.log('Notification ID:', notif.id);
+      console.log('Target Order ID:', notif.orderId);
 
-      if (notif.buyerId) {
-        const buyerNotifRef = doc(collection(db, 'notifications'));
-        batch.set(buyerNotifRef, {
-          targetUserId: notif.buyerId,
-          type: 'order_shipped',
-          title: 'Order Confirmed! 🚚',
-          body: 'The seller has confirmed your order and it is now on the way!',
-          orderId: notif.orderId,
-          read: false,
-          createdAt: serverTimestamp()
-        });
-      }
-
-      await batch.commit();
+      // Use secure Cloud Function
+      const confirmOrderFunc = httpsCallable(functions, 'confirmOrder');
+      const result = await confirmOrderFunc({ orderId: notif.orderId });
+      console.log('Function Result:', result);
+      
+      await updateDoc(doc(db, 'notifications', notif.id), { 
+        isShipped: true,
+        read: true 
+      });
+      
+      setShowSuccess(true);
     } catch (e) {
-      console.log('Error confirming shipment', e);
+      console.log('Error confirming order:', e);
+      let errorMsg = 'Failed to confirm order';
+      
+      if (e.code === 'not-found') {
+        errorMsg = 'Server function missing. Please run "firebase deploy --only functions" to fix this.';
+      } else if (e.code === 'permission-denied') {
+        errorMsg = 'Only seller can confirm this order';
+      } else if (e.code === 'failed-precondition') {
+        errorMsg = 'Order already confirmed';
+      }
+      
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setConfirmingIds(prev => prev.filter(id => id !== notif.id));
     }
   };
 
@@ -65,7 +77,7 @@ export default function NotificationsScreen({ navigation }) {
     if (!notif.read) {
       updateDoc(doc(db, 'notifications', notif.id), { read: true }).catch(console.log);
     }
-    if (notif.type === 'order_received' || notif.type === 'order_shipped') {
+    if (notif.type === 'order_received' || notif.type === 'order_shipped' || notif.type === 'order_processing') {
       navigation.navigate('OrderDetails', { orderId: notif.orderId });
     } else if (notif.type === 'welcome') {
       setSelectedNotif(notif);
@@ -95,7 +107,21 @@ export default function NotificationsScreen({ navigation }) {
             onPress={() => handlePress(item)}
           >
             <View style={[styles.iconWrap, { backgroundColor: theme.card }]}>
-              <Feather name={item.type === 'order_received' ? "shopping-bag" : "bell"} size={20} color={theme.primary || '#111'} />
+              <Feather 
+                name={
+                  item.type === 'order_received' ? "shopping-bag" : 
+                  item.type === 'order_processing' ? "loader" :
+                  item.type === 'order_shipped' ? "check-circle" :
+                  "bell"
+                } 
+                size={20} 
+                color={
+                  item.type === 'order_shipped' ? '#4CAF50' :
+                  item.type === 'order_processing' ? '#FF9800' :
+                  item.type === 'order_received' ? theme.primary || '#111' :
+                  theme.textSecondary
+                } 
+              />
             </View>
             <View style={{ flex: 1, justifyContent: 'center' }}>
               {item.type !== 'welcome' && <Text style={[styles.title, { color: theme.text }]}>{item.title}</Text>}
@@ -106,13 +132,18 @@ export default function NotificationsScreen({ navigation }) {
                <Pressable 
                  style={styles.checkCirc}
                  onPress={() => confirmShipment(item)}
+                 disabled={confirmingIds.includes(item.id)}
                >
-                 <Feather name="check" size={16} color="#fff" />
+                 {confirmingIds.includes(item.id) ? (
+                   <ActivityIndicator size="small" color="#fff" />
+                 ) : (
+                   <Feather name="check" size={16} color="#fff" />
+                 )}
                </Pressable>
             )}
             {item.type === 'order_received' && item.isShipped && (
                <View style={styles.checkCircDone}>
-                 <Feather name="check" size={16} color="#bbb" />
+                 <Feather name="check" size={16} color="#4CAF50" />
                </View>
             )}
 
@@ -146,6 +177,32 @@ export default function NotificationsScreen({ navigation }) {
             <Text style={[styles.fullBodyText, { color: theme.textSecondary, textAlign: 'center' }]}>
               {selectedNotif?.body}
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal visible={showSuccess} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.successModal, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.successIconCircle}>
+              <Feather name="check" size={32} color="#fff" />
+            </View>
+            
+            <Text style={[styles.kaomoji, { color: theme.textSecondary }]}>٩(^ᗜ^ )و ´-</Text>
+            
+            <Text style={[styles.successTitle, { color: theme.text }]}>Success!</Text>
+            
+            <Text style={[styles.successBody, { color: theme.textSecondary }]}>
+              Shipment confirmed! Buyer has been notified.
+            </Text>
+
+            <Pressable 
+              style={[styles.doneButton, { backgroundColor: theme.primary || '#000' }]}
+              onPress={() => setShowSuccess(false)}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -194,5 +251,29 @@ const styles = StyleSheet.create({
   },
   checkCircDone: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: '#eee', borderWidth: 1, borderColor: '#ddd', alignItems: 'center', justifyContent: 'center', marginLeft: 12
+  },
+  successModal: {
+    width: '85%', padding: 32, borderRadius: 32, borderWidth: 1, alignItems: 'center',
+    elevation: 20, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 25, shadowOffset: { width: 0, height: 12 },
+  },
+  successIconCircle: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: '#4CAF50', alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+    elevation: 4, shadowColor: '#4CAF50', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }
+  },
+  kaomoji: {
+    fontSize: 28, fontWeight: '900', marginBottom: 12, letterSpacing: 1
+  },
+  successTitle: {
+    fontSize: 22, fontWeight: '900', marginBottom: 8
+  },
+  successBody: {
+    fontSize: 15, textAlign: 'center', fontWeight: '500', lineHeight: 22, marginBottom: 28, paddingHorizontal: 10
+  },
+  doneButton: {
+    width: '100%', paddingVertical: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }
+  },
+  doneButtonText: {
+    color: '#fff', fontSize: 16, fontWeight: '700'
   }
 });

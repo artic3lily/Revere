@@ -239,7 +239,8 @@ export default function SearchScreen({ navigation }) {
         return bt - at;
       });
 
-      setPosts(list);
+      const unsold = list.filter((p) => !p.sold);
+      setPosts(unsold);
     } catch (e) {
       console.log("Search error:", e);
       setPosts([]);

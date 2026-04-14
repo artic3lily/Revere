@@ -1,0 +1,16 @@
+[debug] [2026-04-14T05:45:21.549Z] ----------------------------------------------------------------------
+[debug] [2026-04-14T05:45:21.552Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\hp\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions
+[debug] [2026-04-14T05:45:21.552Z] CLI Version:   15.5.1
+[debug] [2026-04-14T05:45:21.552Z] Platform:      win32
+[debug] [2026-04-14T05:45:21.552Z] Node Version:  v22.14.0
+[debug] [2026-04-14T05:45:21.552Z] Time:          Tue Apr 14 2026 11:30:21 GMT+0545 (Nepal Time)
+[debug] [2026-04-14T05:45:21.552Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-14T05:45:22.886Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-14T05:45:22.887Z] > authorizing via signed-in user (spicyfriedbacon@gmail.com)
+[debug] [2026-04-14T05:45:22.887Z] [iam] checking project revere-aa96b for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-04-14T05:45:22.888Z] Checked if tokens are valid: true, expires at: 1776147525706
+[debug] [2026-04-14T05:45:22.888Z] Checked if tokens are valid: true, expires at: 1776147525706
+[debug] [2026-04-14T05:45:22.889Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/revere-aa96b:testIamPermissions [none]
+[debug] [2026-04-14T05:45:22.889Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/revere-aa96b:testIamPermissions  x-goog-user-project=revere-aa96b
+[debug] [2026-04-14T05:45:22.889Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/revere-aa96b:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}

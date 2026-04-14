@@ -88,7 +88,8 @@ export default function BannerFeedScreen({ route, navigation }) {
           return bt - at;
         });
 
-        setPosts(list);
+        const filtered = list.filter(p => !p.sold);
+        setPosts(filtered);
       } catch (err) {
         console.log("BannerFeedScreen error:", err?.message);
         setError(err?.message || "Something went wrong while fetching posts.");

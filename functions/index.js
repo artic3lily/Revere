@@ -145,3 +145,75 @@ exports.editPost = onCall(async (request) => {
     throw new HttpsError("internal", err?.message || "Failed to edit post");
   }
 });
+
+// ✅ Seller confirms order - marks items as sold and notifies buyer
+exports.confirmOrder = onCall(async (request) => {
+  try {
+    const userId = request.auth?.uid;
+    if (!userId) {
+      throw new HttpsError("unauthenticated", "Must be signed in");
+    }
+
+    const { orderId } = request.data;
+    if (!orderId) {
+      throw new HttpsError("invalid-argument", "orderId is required");
+    }
+
+    const db = admin.firestore();
+    const orderRef = db.collection("orders").doc(orderId);
+    const orderSnap = await orderRef.get();
+
+    if (!orderSnap.exists) {
+      throw new HttpsError("not-found", "Order not found");
+    }
+
+    const order = orderSnap.data();
+
+    // ✅ Verify user is the seller
+    if (order.sellerId !== userId) {
+      throw new HttpsError("permission-denied", "Only seller can confirm order");
+    }
+
+    // ✅ Prevent double confirmation
+    if (order.status === "shipped") {
+      throw new HttpsError("failed-precondition", "Order already confirmed");
+    }
+
+    // Update order status
+    await orderRef.update({
+      status: "shipped",
+      confirmedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // ✅ Mark all items as sold
+    const batch = admin.firestore().batch();
+    
+    if (order.items && Array.isArray(order.items)) {
+      for (const item of order.items) {
+        const postRef = db.collection("posts").doc(item.id);
+        batch.update(postRef, { sold: true });
+      }
+    }
+
+    // Create buyer notification: Order Shipped
+    const buyerNotifRef = db.collection("notifications").doc();
+    batch.set(buyerNotifRef, {
+      targetUserId: order.buyerId,
+      type: "order_shipped",
+      title: "Order Shipped!",
+      body: "the order has been shipped and now its on the way!!",
+      orderId: orderId,
+      read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+
+    logger.info(`Order ${orderId} confirmed by seller ${userId}. Items marked as sold.`);
+    return { success: true, message: "Order confirmed. Items marked as sold." };
+  } catch (err) {
+    logger.error("confirmOrder error:", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", err?.message || "Failed to confirm order");
+  }
+});

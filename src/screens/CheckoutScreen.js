@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Pressable, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Pressable, Alert, Modal, ActivityIndicator, Image } from 'react-native';
 import { WebView } from 'react-native-webview';
 import CryptoJS from 'crypto-js';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { auth, db } from '../config/firebase';
-import { collection, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, writeBatch, doc, runTransaction } from 'firebase/firestore';
 
 export default function CheckoutScreen({ route, navigation }) {
   const { theme } = useTheme();
@@ -26,6 +26,9 @@ export default function CheckoutScreen({ route, navigation }) {
   
   const [activePaymentType, setActivePaymentType] = useState(null);
 
+  // Success Modal
+  const [showSuccess, setShowSuccess] = useState(false);
+
   // Fallback
   if (!items || items.length === 0) {
     return (
@@ -44,49 +47,82 @@ export default function CheckoutScreen({ route, navigation }) {
       const uid = auth.currentUser?.uid;
       const sellerId = items[0].ownerId;
 
-      const orderRef = await addDoc(collection(db, 'orders'), {
-        buyerId: uid,
-        sellerId: sellerId,
-        items: items.map(i => ({ id: i.id, title: i.caption, price: i.price, image: i.imageUrl || i.tryOnWhiteUrl || null })),
-        totalAmount: total,
-        shipping: form,
-        paymentMethod: methodUsed,
-        status: 'pending',
-        createdAt: serverTimestamp()
+      await runTransaction(db, async (transaction) => {
+        // 1. Fetch latest post docs to check if they are already sold
+        const postRefs = items.map(item => doc(db, 'posts', item.id));
+        const postSnaps = await Promise.all(postRefs.map(ref => transaction.get(ref)));
+
+        // 2. Availability Check
+        for (const snap of postSnaps) {
+          if (!snap.exists()) {
+            throw new Error(`Item "${snap.id}" no longer exists.`);
+          }
+          if (snap.data().sold) {
+            throw new Error(`Item "${snap.data().caption || snap.id}" is already sold.`);
+          }
+        }
+
+        // 3. Create the order document reference
+        const orderRef = doc(collection(db, 'orders'));
+        transaction.set(orderRef, {
+          buyerId: uid,
+          sellerId: sellerId,
+          items: items.map(i => ({ 
+            id: i.id, 
+            title: i.caption, 
+            price: i.price, 
+            image: i.imageUrl || i.tryOnWhiteUrl || null 
+          })),
+          totalAmount: total,
+          shipping: form,
+          paymentMethod: methodUsed,
+          status: 'pending',
+          createdAt: serverTimestamp()
+        });
+
+        // 4. Mark items as sold immediately
+        items.forEach(item => {
+          transaction.update(doc(db, 'posts', item.id), { sold: true });
+        });
+
+        // 5. Delete from shopping cart
+        items.forEach(item => {
+          transaction.delete(doc(db, 'users', uid, 'cart', item.id));
+        });
+
+        // 6. Seller Notification: New Order
+        const sellerNotifRef = doc(collection(db, 'notifications'));
+        transaction.set(sellerNotifRef, {
+          targetUserId: sellerId,
+          type: 'order_received',
+          title: 'New Order Received! 🛍️',
+          body: `${form.fullName} ordered ${items.length} item(s) via ${methodUsed.toUpperCase()}.\nTap the checkmark to confirm shipment!`,
+          orderId: orderRef.id,
+          itemIds: items.map(i => i.id),
+          buyerId: uid,
+          isShipped: false,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+
+        // 7. Buyer Notification: Order History Record
+        const buyerNotifRef = doc(collection(db, 'notifications'));
+        transaction.set(buyerNotifRef, {
+          targetUserId: uid,
+          type: 'order_processing',
+          title: 'Order Confirmed! 👍',
+          body: `Your order from @${items[0]?.ownerUsername} is being processed.\nItems: ${items.map(i => i.caption).join(', ')}\nTotal: Rs. ${total}`,
+          orderId: orderRef.id,
+          read: false,
+          createdAt: serverTimestamp()
+        });
       });
 
-      const batch = writeBatch(db);
-
-      items.forEach(item => {
-        const cartRef = doc(db, 'users', uid, 'cart', item.id);
-        batch.delete(cartRef);
-
-        const postRef = doc(db, 'posts', item.id);
-        batch.update(postRef, { sold: true });
-      });
-
-      const notifRef = doc(collection(db, 'notifications'));
-      batch.set(notifRef, {
-        targetUserId: sellerId,
-        type: 'order_received',
-        title: 'New Order Received! 🛍️',
-        body: `${form.fullName} ordered ${items.length} item(s) via ${methodUsed.toUpperCase()}.\nTap the checkmark to confirm shipment!`,
-        orderId: orderRef.id,
-        buyerId: uid,
-        isShipped: false,
-        read: false,
-        createdAt: serverTimestamp()
-      });
-
-      await batch.commit();
-
-      Alert.alert('Order Confirmed!', 'Your order has been placed successfully.', [
-        { text: 'OK', onPress: () => navigation.navigate('Home') }
-      ]);
+      setShowSuccess(true);
       
     } catch (e) {
       console.log('Checkout Error', e);
-      Alert.alert('Error', 'Could not process checkout.');
+      Alert.alert('Checkout Failed', e.message || 'One or more items are no longer available.');
     } finally {
       setProcessing(false);
       setEsewaHtml(null);
@@ -278,6 +314,37 @@ export default function CheckoutScreen({ route, navigation }) {
          )}
       </Modal>
 
+      {/* Success Modal */}
+      <Modal visible={showSuccess} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text, textAlign: 'center' }]}>
+              Order Confirmed! 👍
+            </Text>
+
+            <Image
+              source={require('../../assets/images/thumps.gif')}
+              style={styles.kittyGif}
+              resizeMode="contain"
+            />
+
+            <Text style={[styles.fullBodyText, { color: theme.textSecondary, textAlign: 'center', marginBottom: 20 }]}>
+              Your order is being processed! Check your notifications for details.
+            </Text>
+
+            <Pressable 
+              onPress={() => {
+                setShowSuccess(false);
+                navigation.navigate('Home');
+              }} 
+              style={[styles.confirmBtn, { width: '100%', backgroundColor: theme.text }]}
+            >
+              <Text style={[styles.confirmText, { color: theme.bg }]}>Return Home</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -305,5 +372,16 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, borderTopWidth: 1, paddingBottom: 32
   },
   confirmBtn: { paddingVertical: 18, borderRadius: 14, alignItems: 'center' },
-  confirmText: { fontSize: 16, fontWeight: '900' }
+  confirmText: { fontSize: 16, fontWeight: '900' },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24
+  },
+  modalContent: {
+    width: '100%', padding: 24, borderRadius: 28, borderWidth: 1,
+    elevation: 8, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
+    alignItems: 'center'
+  },
+  modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 16 },
+  kittyGif: { width: 160, height: 160, marginBottom: 16 },
+  fullBodyText: { fontSize: 14, lineHeight: 22, fontWeight: '600', paddingHorizontal: 10 },
 });

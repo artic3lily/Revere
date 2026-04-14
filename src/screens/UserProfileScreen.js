@@ -44,6 +44,7 @@ import {
 } from "firebase/storage";
 
 import { useTheme } from "../context/ThemeContext";
+import BottomNav from "../components/BottomNav";
 
 const CATEGORIES = ["Grunge", "Casual", "Elegant", "Chic", "Y2k", "Vintage", "Minimalistic", "Street Wear", "Bohemian", "Sporty", "Cottage Core", "Preppy"];
 
@@ -385,23 +386,23 @@ export default function UserProfileScreen({ navigation, route }) {
 
   if (loadingProfile) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator />
+      <View style={[styles.loading, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.text} />
       </View>
     );
   }
 
   if (!profile) {
     return (
-      <View style={styles.screen}>
+      <View style={[styles.screen, { backgroundColor: theme.bg }]}>
         <View style={styles.topbar}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.iconBtn}>
-            <Feather name="arrow-left" size={20} color="#111" />
+          <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Feather name="arrow-left" size={20} color={theme.text} />
           </Pressable>
-          <Text style={styles.title}>Profile</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
           <View style={{ width: 40 }} />
         </View>
-        <Text style={styles.empty}>User not found.</Text>
+        <Text style={[styles.empty, { color: theme.text }]}>User not found.</Text>
       </View>
     );
   }
@@ -409,18 +410,18 @@ export default function UserProfileScreen({ navigation, route }) {
   const joinedText = formatJoined(profile?.createdAt);
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
       {/* Topbar */}
       <View style={styles.topbar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={20} color="#111" />
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Feather name="arrow-left" size={20} color={theme.text} />
         </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
           @{profile?.username || "username"}
         </Text>
         
         {currentUid && currentUid !== userId ? (
-          <Pressable onPress={() => setReportOpen(true)} hitSlop={12} style={styles.iconBtn}>
+          <Pressable onPress={() => setReportOpen(true)} hitSlop={12} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Feather name="flag" size={18} color="#d32f2f" />
           </Pressable>
         ) : (
@@ -429,28 +430,28 @@ export default function UserProfileScreen({ navigation, route }) {
       </View>
 
       {/* Profile card */}
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {profile?.photoURL ? (
           <Image source={{ uri: profile.photoURL }} style={styles.avatar} />
         ) : (
-          <View style={styles.avatarPh}>
-            <Feather name="user" size={22} color="#111" />
+          <View style={[styles.avatarPh, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+            <Feather name="user" size={22} color={theme.text} />
           </View>
         )}
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
             {profile?.fullName || "User"}
           </Text>
-          <Text style={styles.username} numberOfLines={1}>
+          <Text style={[styles.username, { color: theme.text }]} numberOfLines={1}>
             @{profile?.username || "username"}
           </Text>
 
-          <Text style={styles.joined} numberOfLines={1}>
+          <Text style={[styles.joined, { color: theme.text }]} numberOfLines={1}>
             {joinedText}
           </Text>
 
-          <Text style={styles.about} numberOfLines={2}>
+          <Text style={[styles.about, { color: theme.text }]} numberOfLines={2}>
             {profile?.about?.trim()?.length ? profile.about : "No bio yet ✨"}
           </Text>
         </View>
@@ -462,9 +463,13 @@ export default function UserProfileScreen({ navigation, route }) {
             <Pressable
               onPress={toggleFollow}
               disabled={busyFollow}
-              style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+              style={[
+                styles.followBtn,
+                { backgroundColor: theme.text, borderColor: theme.text },
+                isFollowing && { backgroundColor: theme.card, borderColor: theme.text }
+              ]}
             >
-              <Text style={[styles.followText, isFollowing && styles.followTextActive]}>
+              <Text style={[styles.followText, { color: theme.bg }, isFollowing && { color: theme.text }]}>
                 {busyFollow ? "..." : isFollowing ? "Following" : "Follow"}
               </Text>
             </Pressable>
@@ -477,9 +482,9 @@ export default function UserProfileScreen({ navigation, route }) {
                   otherUsername: profile?.username,
                 })
               }
-              style={styles.messageBtn}
+              style={[styles.messageBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
             >
-              <Text style={styles.messageText}>Message</Text>
+              <Text style={[styles.messageText, { color: theme.text }]}>Message</Text>
             </Pressable>
           </View>
         )}
@@ -488,31 +493,31 @@ export default function UserProfileScreen({ navigation, route }) {
       {/* stats */}
       <View style={styles.followRow}>
         <Pressable 
-          style={styles.followPill}
+          style={[styles.followPill, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate("FollowList", { userId, title: "Following", type: "following" })}
         >
-          <Text style={styles.followNum}>{followingCount}</Text>
-          <Text style={styles.followLbl}>Following</Text>
+          <Text style={[styles.followNum, { color: theme.text }]}>{followingCount}</Text>
+          <Text style={[styles.followLbl, { color: theme.text }]}>Following</Text>
         </Pressable>
 
         <Pressable 
-          style={styles.followPill}
+          style={[styles.followPill, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => navigation.navigate("FollowList", { userId, title: "Followers", type: "followers" })}
         >
-          <Text style={styles.followNum}>{followersCount}</Text>
-          <Text style={styles.followLbl}>Followers</Text>
+          <Text style={[styles.followNum, { color: theme.text }]}>{followersCount}</Text>
+          <Text style={[styles.followLbl, { color: theme.text }]}>Followers</Text>
         </Pressable>
 
-        <View style={styles.followPill}>
-          <Text style={styles.followNum}>{posts.length}</Text>
-          <Text style={styles.followLbl}>Posts</Text>
+        <View style={[styles.followPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.followNum, { color: theme.text }]}>{posts.length}</Text>
+          <Text style={[styles.followLbl, { color: theme.text }]}>Posts</Text>
         </View>
       </View>
 
       {/* Rating */}
       <View style={styles.ratingRow}>
         <Pressable onPress={() => navigation.navigate("RatingList", { userId, title: "Ratings" })}>
-          <Text style={styles.ratingText}>Rating</Text>
+          <Text style={[styles.ratingText, { color: theme.text }]}>Rating</Text>
         </Pressable>
         <View style={styles.stars}>
           {[1, 2, 3, 4, 5].map((i) => (
@@ -520,18 +525,18 @@ export default function UserProfileScreen({ navigation, route }) {
               <Feather
                 name="star"
                 size={20}
-                color={i <= (myRating || profile?.ratingAvg || 0) ? "#fbc02d" : "#111"}
+                color={i <= (myRating || profile?.ratingAvg || 0) ? "#fbc02d" : theme.text}
                 style={{ opacity: i <= (myRating || profile?.ratingAvg || 0) ? 1 : 0.25 }}
               />
             </Pressable>
           ))}
-          <Text style={styles.ratingNumber}>
+          <Text style={[styles.ratingNumber, { color: theme.text }]}>
             {profile?.ratingAvg ? profile.ratingAvg.toFixed(1) : "0.0"}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Posts</Text>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Posts</Text>
 
       {/* Filters UI */}
       <View style={styles.filtersWrap}>
@@ -562,7 +567,7 @@ export default function UserProfileScreen({ navigation, route }) {
 
       {loadingPosts ? (
         <View style={{ paddingTop: 20 }}>
-          <ActivityIndicator />
+          <ActivityIndicator color={theme.text} />
         </View>
       ) : (
         <FlatList
@@ -571,20 +576,20 @@ export default function UserProfileScreen({ navigation, route }) {
           renderItem={renderTile}
           numColumns={3}
           columnWrapperStyle={{ gap: 8 }}
-          contentContainerStyle={{ paddingBottom: 24, gap: 8 }}
+          contentContainerStyle={{ paddingBottom: 120, gap: 8 }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.empty}>No posts yet.</Text>}
+          ListEmptyComponent={<Text style={[styles.empty, { color: theme.text }]}>No posts yet.</Text>}
         />
       )}
 
       {/* Post detail */}
       <Modal visible={detailOpen} animationType="slide">
-        <View style={styles.detailScreen}>
-          <View style={styles.detailTopbar}>
-            <Pressable onPress={closeDetail} hitSlop={12} style={styles.iconBtn}>
-              <Feather name="arrow-left" size={20} color="#111" />
+        <View style={[styles.detailScreen, { backgroundColor: theme.bg }]}>
+          <View style={[styles.detailTopbar, { borderColor: theme.border }]}>
+            <Pressable onPress={closeDetail} hitSlop={12} style={[styles.iconBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Feather name="arrow-left" size={20} color={theme.text} />
             </Pressable>
-            <Text style={styles.detailTitle}>Item</Text>
+            <Text style={[styles.detailTitle, { color: theme.text }]}>Item</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -598,21 +603,21 @@ export default function UserProfileScreen({ navigation, route }) {
                   {profile?.photoURL ? (
                     <Image source={{ uri: profile.photoURL }} style={styles.detailAvatar} />
                   ) : (
-                    <View style={styles.detailAvatarPh}>
-                      <Feather name="user" size={16} color="#111" />
+                    <View style={[styles.detailAvatarPh, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                      <Feather name="user" size={16} color={theme.text} />
                     </View>
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.detailName} numberOfLines={1}>
+                    <Text style={[styles.detailName, { color: theme.text }]} numberOfLines={1}>
                       {profile?.fullName || "User"}
                     </Text>
-                    <Text style={styles.detailUsername} numberOfLines={1}>
+                    <Text style={[styles.detailUsername, { color: theme.text }]} numberOfLines={1}>
                       @{profile?.username || "username"}
                     </Text>
                   </View>
                 </View>
 
-                <View style={styles.detailImgWrap}>
+                <View style={[styles.detailImgWrap, { backgroundColor: theme.bg, borderColor: theme.border }]}>
                   <Image source={{ uri: activePost?.tryOnWhiteUrl || activePost?.imageUrl }} style={styles.detailImg} />
                 </View>
 
@@ -624,26 +629,26 @@ export default function UserProfileScreen({ navigation, route }) {
                       </View>
                     )}
                     {!!activePost?.category && (
-                      <View style={styles.pill}>
-                        <Text style={styles.pillText}>{activePost.category}</Text>
+                      <View style={[styles.pill, { borderColor: theme.border }]}>
+                        <Text style={[styles.pillText, { color: theme.text }]}>{activePost.category}</Text>
                       </View>
                     )}
                   </View>
 
-                  <Text style={styles.detailCaption}>
+                  <Text style={[styles.detailCaption, { color: theme.text }]}>
                     {activePost?.caption?.trim()?.length ? activePost.caption : "No caption"}
                   </Text>
 
                   {Array.isArray(activePost?.tags) && activePost.tags.length > 0 ? (
                     <View style={styles.tagsRow}>
                       {activePost.tags.slice(0, 12).map((t) => (
-                        <View key={t} style={styles.tagChip}>
-                          <Text style={styles.tagChipText}>#{t}</Text>
+                        <View key={t} style={[styles.tagChip, { borderColor: theme.border }]}>
+                          <Text style={[styles.tagChipText, { color: theme.text }]}>#{t}</Text>
                         </View>
                       ))}
                     </View>
                   ) : (
-                    <Text style={styles.tagsEmpty}>No tags</Text>
+                    <Text style={[styles.tagsEmpty, { color: theme.text }]}>No tags</Text>
                   )}
                 </View>
               </View>
@@ -660,21 +665,21 @@ export default function UserProfileScreen({ navigation, route }) {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalOverlay}
         >
-          <View style={styles.reportModalCard}>
-            <View style={styles.reportModalTop}>
-              <Text style={styles.reportModalTitle}>Report User</Text>
+          <View style={[styles.reportModalCard, { backgroundColor: theme.card }]}>
+            <View style={[styles.reportModalTop, { borderColor: theme.border }]}>
+              <Text style={[styles.reportModalTitle, { color: theme.text }]}>Report User</Text>
               <Pressable
                 onPress={() => {
                   if (!isReporting) setReportOpen(false);
                 }}
                 style={styles.closeBtn}
               >
-                <Feather name="x" size={20} color="#111" />
+                <Feather name="x" size={20} color={theme.text} />
               </Pressable>
             </View>
 
             <ScrollView contentContainerStyle={{ padding: 16 }}>
-              <Text style={styles.reportLabel}>Reason</Text>
+              <Text style={[styles.reportLabel, { color: theme.text }]}>Reason</Text>
               <View style={styles.reasonWrap}>
                 {REPORT_REASONS.map((r) => {
                   const active = reportReason === r;
@@ -682,9 +687,17 @@ export default function UserProfileScreen({ navigation, route }) {
                     <Pressable
                       key={r}
                       onPress={() => setReportReason(r)}
-                      style={[styles.reasonChip, active && styles.reasonChipActive]}
+                      style={[
+                        styles.reasonChip,
+                        { borderColor: theme.border, backgroundColor: theme.card },
+                        active && { borderColor: theme.text, backgroundColor: theme.text }
+                      ]}
                     >
-                      <Text style={[styles.reasonChipText, active && styles.reasonChipTextActive]}>
+                      <Text style={[
+                        styles.reasonChipText,
+                        { color: theme.text },
+                        active && { color: theme.bg }
+                      ]}>
                         {r}
                       </Text>
                     </Pressable>
@@ -692,20 +705,21 @@ export default function UserProfileScreen({ navigation, route }) {
                 })}
               </View>
 
-              <Text style={styles.reportLabel}>Additional Comments</Text>
+              <Text style={[styles.reportLabel, { color: theme.text }]}>Additional Comments</Text>
               <TextInput
-                style={styles.reportInput}
+                style={[styles.reportInput, { backgroundColor: theme.bg, borderColor: theme.border, color: theme.text }]}
                 placeholder="Details help us understand the issue..."
+                placeholderTextColor={theme.textSecondary}
                 multiline
                 numberOfLines={4}
                 value={reportComment}
                 onChangeText={setReportComment}
               />
 
-              <Text style={styles.reportLabel}>Evidence (Optional)</Text>
+              <Text style={[styles.reportLabel, { color: theme.text }]}>Evidence (Optional)</Text>
               {reportEvidence ? (
                 <View style={styles.evidenceWrap}>
-                  <Image source={{ uri: reportEvidence }} style={styles.evidenceImg} />
+                  <Image source={{ uri: reportEvidence }} style={[styles.evidenceImg, { borderColor: theme.border }]} />
                   <Pressable
                     style={styles.evidenceRemove}
                     onPress={() => setReportEvidence(null)}
@@ -714,9 +728,9 @@ export default function UserProfileScreen({ navigation, route }) {
                   </Pressable>
                 </View>
               ) : (
-                <Pressable style={styles.evidenceBtn} onPress={pickReportEvidence}>
-                  <Feather name="image" size={20} color="#111" />
-                  <Text style={styles.evidenceBtnText}>Add Screenshot or Image</Text>
+                <Pressable style={[styles.evidenceBtn, { borderColor: theme.border }]} onPress={pickReportEvidence}>
+                  <Feather name="image" size={20} color={theme.text} />
+                  <Text style={[styles.evidenceBtnText, { color: theme.text }]}>Add Screenshot or Image</Text>
                 </Pressable>
               )}
 
@@ -726,9 +740,9 @@ export default function UserProfileScreen({ navigation, route }) {
                 disabled={isReporting}
               >
                 {isReporting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={theme.bg} />
                 ) : (
-                  <Text style={styles.submitReportBtnText}>Submit Report</Text>
+                  <Text style={[styles.submitReportBtnText, { color: theme.bg }]}>Submit Report</Text>
                 )}
               </Pressable>
               <Text style={styles.reportNote}>
@@ -789,6 +803,7 @@ export default function UserProfileScreen({ navigation, route }) {
         </View>
       </Modal>
 
+      <BottomNav navigation={navigation} />
     </View>
   );
 }
