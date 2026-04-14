@@ -458,14 +458,16 @@ export default function Users() {
                             {isBusy ? "…" : "Ban"}
                           </button>
 
-                          <button
-                            className="btnSmall"
-                            disabled={isBusy}
-                            onClick={() => openAction(u, "restore")}
-                            title="Restore (unban/unsuspend)"
-                          >
-                            {isBusy ? "…" : "Restore"}
-                          </button>
+                          {st !== "active" && (
+                            <button
+                              className="btnSmall"
+                              disabled={isBusy}
+                              onClick={() => openAction(u, "restore")}
+                              title="Restore (unban/unsuspend)"
+                            >
+                              {isBusy ? "…" : "Restore"}
+                            </button>
+                          )}
                         </div>
 
                         {!!u.banReason && (
@@ -578,13 +580,15 @@ export default function Users() {
                     >
                       Ban
                     </button>
-                    <button
-                      className="btnSmall"
-                      disabled={busyId === detailUser.id}
-                      onClick={() => openAction(detailUser, "restore")}
-                    >
-                      Restore
-                    </button>
+                    {statusNow(detailUser) !== "active" && (
+                      <button
+                        className="btnSmall"
+                        disabled={busyId === detailUser.id}
+                        onClick={() => openAction(detailUser, "restore")}
+                      >
+                        Restore
+                      </button>
+                    )}
                   </div>
 
                   <div className="note" style={{ marginTop: 12 }}>
