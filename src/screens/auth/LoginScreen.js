@@ -143,10 +143,9 @@ export default function LoginScreen({ navigation }) {
     }
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      setSuccessMsg("Password reset email has been sent. (˶ᵔ ᵕ ᵔ˶)");
-      setShowSuccess(true);
+      Alert.alert("Success", "Password reset email has been sent. (˶ᵔ ᵕ ᵔ˶)");
     } catch (err) {
-      setError(err?.message ?? "Could not send reset email");
+      Alert.alert("Error", err?.message ?? "Could not send reset email");
     }
   };
 
